@@ -7,6 +7,7 @@ import { Geometry2DTab } from './components/Geometry2DTab';
 import { DiceReasoningTab } from './components/DiceReasoningTab';
 import { PracticeQuizTab } from './components/PracticeQuizTab';
 import { OfflineSolverTab } from './components/OfflineSolverTab';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('cutting_lab');
@@ -67,6 +68,9 @@ export default function App() {
         {activeTab === 'offline_solver' && <OfflineSolverTab language={language} />}
         {activeTab === 'quiz_practice' && <PracticeQuizTab language={language} />}
       </main>
+
+      {/* Connectivity & Offline Status Indicator */}
+      <OfflineIndicator language={language} />
 
       {/* Footer */}
       {!projectorMode && !focusMode && (

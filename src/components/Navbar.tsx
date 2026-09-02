@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ActiveTab } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 import {
   Box,
   Brain,
@@ -201,6 +202,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {/* PWA 1-Click Install Button */}
+            <PWAInstallButton language={language} variant="navbar" />
+
             {/* FOCUS / CLEAN DIAGRAM MODE BUTTON */}
             <button
               id="btn-toggle-focus-mode"
