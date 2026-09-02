@@ -32,6 +32,9 @@ interface ShapeVisualizerTabProps {
   onToggleDiagramOnly?: () => void;
   onCancelDiagramOnly?: () => void;
   onSelectTab?: (tab: ActiveTab) => void;
+  selectedShapeType?: ShapeType;
+  onSelectShapeType?: (shape: ShapeType) => void;
+  onOpenQASolver?: (shapeId?: string) => void;
 }
 
 export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
@@ -43,9 +46,12 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
   onToggleDiagramOnly,
   onCancelDiagramOnly,
   onSelectTab,
+  selectedShapeType,
+  onSelectShapeType,
+  onOpenQASolver,
 }) => {
   const [params, setParams] = useState<ShapeParams>({
-    type: 'cylinder',
+    type: selectedShapeType || 'cylinder',
     radius: 4,
     radiusOuter: 5,
     radiusTop: 2,
@@ -64,6 +70,12 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
     unfoldStep: 0,
     unfoldProgress: 0,
   });
+
+  useEffect(() => {
+    if (selectedShapeType && selectedShapeType !== params.type) {
+      setParams((prev) => ({ ...prev, type: selectedShapeType }));
+    }
+  }, [selectedShapeType]);
 
   const [viewLayout, setViewLayout] = useState<'split' | 'widescreen169'>(projectorMode ? 'widescreen169' : 'split');
   const [shapeCategory, setShapeCategory] = useState<'all' | 'curved' | 'prisms' | 'pyramids'>('all');
@@ -278,6 +290,7 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
       type: shape.type,
       ...shape.defaultParams,
     }));
+    onSelectShapeType?.(shape.type);
   };
 
   const copyText = (text: string, id: string) => {
@@ -414,30 +427,38 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Top Header & Layout Mode Switcher */}
+      {/* Top Toolbar: Shape Title, Style Popover, View Mode Switcher */}
       <div className="relative z-30 bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 sm:p-3 backdrop-blur-md flex flex-wrap items-center justify-between gap-2 shadow-lg">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-lg shrink-0">
-            📐
+            {currentShapeObj.icon || '📐'}
           </div>
           <div>
             <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-1.5">
-              <span>{language === 'hi' ? '3D ठोस व घटक पृथक्करण' : '3D Geometry & Deconstruction'}</span>
+              <span>{language === 'hi' ? currentShapeObj.nameHi : currentShapeObj.nameEn}</span>
               <span className="text-[10px] font-mono font-normal px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 100% Offline
               </span>
             </h2>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
-              {language === 'hi'
-                ? 'बेलन, शंकु, घन, घनाभ के सभी भागों (वक्र पृष्ठ, आधार) को 3D में अलग करके समझें'
-                : 'Deconstruct solids into lateral surface, top & bottom bases'}
-            </p>
           </div>
         </div>
 
-        {/* View Mode Switcher (16:9 Screen vs Split View + Only Diagram + Export/Print) */}
+        {/* Action controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Print / Download MHTML Menu */}
+          {/* Quick Style Toggle */}
+          <button
+            onClick={() => setIsCompactSettingsOpen(!isCompactSettingsOpen)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+              isCompactSettingsOpen
+                ? 'bg-indigo-950/80 text-indigo-300 border-indigo-500/60'
+                : 'bg-slate-950 text-slate-400 hover:text-white border-slate-800'
+            }`}
+          >
+            <span>🎨</span>
+            <span>{language === 'hi' ? 'रंग व स्टाइल' : 'Style'}</span>
+          </button>
+
+          {/* Export & Download Menu */}
           <ExportActionMenu
             title={`3D Geometry: ${language === 'hi' ? currentShapeObj.nameHi : currentShapeObj.nameEn}`}
             filename={`3d_shape_${params.type}_${Date.now()}`}
@@ -446,21 +467,23 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
             language={language}
           />
 
+          {/* Only Diagram Button */}
           <button
             id="btn-trigger-only-diagram-shapes"
             onClick={onToggleDiagramOnly}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white transition-all shadow-sm cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white transition-all shadow-sm cursor-pointer"
             title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
           >
             <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
             <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
           </button>
 
+          {/* Split / 16:9 Screen Layout Switcher */}
           <div className="flex items-center gap-1 p-0.5 bg-slate-950 border border-slate-800 rounded-lg">
             <button
               id="btn-mode-split"
               onClick={() => setViewLayout('split')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
                 viewLayout === 'split'
                   ? 'bg-indigo-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -473,7 +496,7 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
             <button
               id="btn-mode-169"
               onClick={() => setViewLayout('widescreen169')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 viewLayout === 'widescreen169'
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -486,172 +509,52 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
         </div>
       </div>
 
-      {/* Shape Category Filter & Selector Ribbon */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-3.5 backdrop-blur-md space-y-2.5 shadow-lg">
-        {/* Module Switcher & Filter Ribbon */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
-          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto py-0.5">
-            {/* Quick module jumps: 2D, 3D, Dice, Cube Slicing */}
-            {onSelectTab && (
-              <div className="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 mr-1 sm:mr-2">
-                <button
-                  onClick={() => onSelectTab('geometry_2d')}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                  title={language === 'hi' ? '2D ज्यामिति पर जाएं' : 'Switch to 2D Geometry'}
-                >
-                  <span>📐</span>
-                  <span>{language === 'hi' ? '2D आकृतियां' : '2D Shapes'}</span>
-                </button>
-                <button
-                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all flex items-center gap-1"
-                >
-                  <span>📦</span>
-                  <span>{language === 'hi' ? '3D ठोस' : '3D Solids'}</span>
-                </button>
-                <button
-                  onClick={() => onSelectTab('dice_reasoning')}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                  title={language === 'hi' ? 'पासा रीज़निंग पर जाएं' : 'Switch to Dice Reasoning'}
-                >
-                  <span>🎲</span>
-                  <span>{language === 'hi' ? 'पासा (Dice)' : 'Dice'}</span>
-                </button>
-                <button
-                  onClick={() => onSelectTab('cutting_lab')}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                  title={language === 'hi' ? 'घन काटना लैब पर जाएं' : 'Switch to Cube Slicing'}
-                >
-                  <span>🧊</span>
-                  <span>{language === 'hi' ? 'घन काटना' : 'Cube Slicing'}</span>
-                </button>
-              </div>
-            )}
-
-            {/* 3D Category Filter Pills */}
-            {[
-              { id: 'all', labelHi: 'सभी (11)', labelEn: 'All (11)', icon: '🌟' },
-              { id: 'curved', labelHi: 'बेलन, गोला व पहिया', labelEn: 'Curved / Round', icon: '🛢️' },
-              { id: 'prisms', labelHi: 'घन, घनाभ व प्रिज्म', labelEn: 'Prisms & Cubes', icon: '📦' },
-              { id: 'pyramids', labelHi: 'शंकु, पिरामिड व छिन्नक', labelEn: 'Cones & Pyramids', icon: '🔺' },
-            ].map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setShapeCategory(cat.id as any)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-                  shapeCategory === cat.id
-                    ? 'bg-indigo-600/90 text-white shadow-md shadow-indigo-600/30'
-                    : 'bg-slate-950/70 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-slate-800/60'
-                }`}
-              >
-                <span>{cat.icon}</span>
-                <span>{language === 'hi' ? cat.labelHi : cat.labelEn}</span>
-              </button>
-            ))}
-          </div>
-
+      {/* Compact Settings Popover / Expandable Bar */}
+      {isCompactSettingsOpen && (
+        <div className="p-3 bg-slate-950/90 rounded-xl border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
-            {/* Quick Visual Styles Toggle */}
-            <button
-              onClick={() => setIsCompactSettingsOpen(!isCompactSettingsOpen)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
-                isCompactSettingsOpen
-                  ? 'bg-indigo-950/80 text-indigo-300 border-indigo-500/60'
-                  : 'bg-slate-950 text-slate-400 hover:text-white border-slate-800'
-              }`}
-            >
-              <span>🎨</span>
-              <span>{language === 'hi' ? 'रंग व स्टाइल' : 'Style'}</span>
-            </button>
+            <label className="text-slate-400 font-medium">{language === 'hi' ? 'रंग (Color):' : 'Color:'}</label>
+            <input
+              type="color"
+              value={params.color}
+              onChange={(e) => setParams({ ...params, color: e.target.value })}
+              className="w-7 h-7 rounded-md cursor-pointer border border-slate-700 bg-transparent"
+            />
           </div>
-        </div>
 
-        {/* Compact Settings Popover / Expandable Bar */}
-        {isCompactSettingsOpen && (
-          <div className="p-3 bg-slate-950/90 rounded-xl border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
-            <div className="flex items-center gap-2">
-              <label className="text-slate-400 font-medium">{language === 'hi' ? 'रंग (Color):' : 'Color:'}</label>
+          <div className="flex items-center gap-3 sm:gap-5">
+            <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
               <input
-                type="color"
-                value={params.color}
-                onChange={(e) => setParams({ ...params, color: e.target.value })}
-                className="w-7 h-7 rounded-md cursor-pointer border border-slate-700 bg-transparent"
+                type="checkbox"
+                checked={params.showLabels !== false}
+                onChange={(e) => setParams({ ...params, showLabels: e.target.checked })}
+                className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
               />
-            </div>
+              {language === 'hi' ? '3D लेबल (Labels)' : '3D Labels'}
+            </label>
 
-            <div className="flex items-center gap-3 sm:gap-5">
-              <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={params.showLabels !== false}
-                  onChange={(e) => setParams({ ...params, showLabels: e.target.checked })}
-                  className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
-                />
-                {language === 'hi' ? '3D लेबल (Labels)' : '3D Labels'}
-              </label>
+            <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+              <input
+                type="checkbox"
+                checked={params.wireframe}
+                onChange={(e) => setParams({ ...params, wireframe: e.target.checked })}
+                className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+              />
+              {language === 'hi' ? 'जालीदार (Wireframe)' : 'Wireframe'}
+            </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={params.wireframe}
-                  onChange={(e) => setParams({ ...params, wireframe: e.target.checked })}
-                  className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
-                />
-                {language === 'hi' ? 'जालीदार (Wireframe)' : 'Wireframe'}
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={params.transparent}
-                  onChange={(e) => setParams({ ...params, transparent: e.target.checked })}
-                  className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
-                />
-                {language === 'hi' ? 'पारदर्शी (Transparent)' : 'Transparent'}
-              </label>
-            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+              <input
+                type="checkbox"
+                checked={params.transparent}
+                onChange={(e) => setParams({ ...params, transparent: e.target.checked })}
+                className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+              />
+              {language === 'hi' ? 'पारदर्शी (Transparent)' : 'Transparent'}
+            </label>
           </div>
-        )}
-
-        {/* Filtered Shape Selector Carousel */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-1.5 sm:gap-2">
-          {shapeList
-            .filter((shape) => {
-              if (shapeCategory === 'curved') {
-                return ['cylinder', 'hollow_cylinder', 'sphere', 'hemisphere', 'wheel'].includes(shape.type);
-              }
-              if (shapeCategory === 'prisms') {
-                return ['cube', 'cuboid', 'prism'].includes(shape.type);
-              }
-              if (shapeCategory === 'pyramids') {
-                return ['cone', 'frustum', 'pyramid'].includes(shape.type);
-              }
-              return true;
-            })
-            .map((shape) => {
-              const isSelected = params.type === shape.type;
-              return (
-                <button
-                  key={shape.type}
-                  id={`btn-shape-${shape.type}`}
-                  onClick={() => handleSelectShape(shape)}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-indigo-600/30 border-indigo-400 text-white shadow-md shadow-indigo-500/20 scale-[1.03]'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="text-xl mb-0.5">{shape.icon}</span>
-                  <span className="text-[11px] font-semibold tracking-tight truncate w-full">
-                    {language === 'hi' ? shape.nameHi.split(' ')[0] : shape.nameEn.split(' ')[0]}
-                  </span>
-                  <span className="text-[9px] text-slate-400 font-normal truncate w-full">
-                    {language === 'hi' ? shape.nameHi.split(' ')[1] || '' : shape.nameEn.split(' ')[1] || ''}
-                  </span>
-                </button>
-              );
-            })}
         </div>
-      </div>
+      )}
 
       {/* 16:9 WIDESCREEN CINEMATIC MODE */}
       {viewLayout === 'widescreen169' ? (

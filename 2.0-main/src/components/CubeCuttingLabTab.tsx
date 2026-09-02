@@ -210,69 +210,34 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Top Banner: Mode Selector & Presets in a sleek compact single bar */}
+      {/* Top Controls: Cube / Cuboid Toggle & Color Presets */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2.5 backdrop-blur-md">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Module switch buttons */}
-          {onSelectTab && (
-            <div className="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800">
-              <button
-                onClick={() => onSelectTab('geometry_2d')}
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                title={language === 'hi' ? '2D ज्यामिति पर जाएं' : 'Switch to 2D Geometry'}
-              >
-                <span>📐</span>
-                <span>{language === 'hi' ? '2D आकृतियां' : '2D Shapes'}</span>
-              </button>
-              <button
-                onClick={() => onSelectTab('shapes_3d')}
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                title={language === 'hi' ? '3D ठोस पर जाएं' : 'Switch to 3D Solids'}
-              >
-                <span>📦</span>
-                <span>{language === 'hi' ? '3D ठोस' : '3D Solids'}</span>
-              </button>
-              <button
-                onClick={() => onSelectTab('dice_reasoning')}
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                title={language === 'hi' ? 'पासा रीज़निंग पर जाएं' : 'Switch to Dice Reasoning'}
-              >
-                <span>🎲</span>
-                <span>{language === 'hi' ? 'पासा (Dice)' : 'Dice'}</span>
-              </button>
-              <button
-                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all flex items-center gap-1"
-              >
-                <span>🧊</span>
-                <span>{language === 'hi' ? 'घन काटना' : 'Cube Slicing'}</span>
-              </button>
-            </div>
-          )}
-
+          {/* Cube vs Cuboid switch */}
           <div className="flex p-0.5 bg-slate-950 rounded-lg border border-slate-800">
             <button
               id="btn-mode-cube"
               onClick={() => setParams((p) => ({ ...p, isCuboid: false }))}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                 !params.isCuboid
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <Box className="w-3.5 h-3.5" />
-              <span>{language === 'hi' ? 'घन' : 'Cube'}</span>
+              <span>{language === 'hi' ? 'घन (Cube)' : 'Cube'}</span>
             </button>
             <button
               id="btn-mode-cuboid"
               onClick={() => setParams((p) => ({ ...p, isCuboid: true }))}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                 params.isCuboid
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>{language === 'hi' ? 'घनाभ' : 'Cuboid'}</span>
+              <span>{language === 'hi' ? 'घनाभ (Cuboid)' : 'Cuboid'}</span>
             </button>
           </div>
 

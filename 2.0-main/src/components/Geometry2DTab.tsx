@@ -32,6 +32,9 @@ interface Geometry2DTabProps {
   onToggleDiagramOnly?: () => void;
   onCancelDiagramOnly?: () => void;
   onSelectTab?: (tab: ActiveTab) => void;
+  selectedShapeType?: Geometry2DShapeType;
+  onSelectShapeType?: (shape: Geometry2DShapeType) => void;
+  onOpenQASolver?: (shapeId?: string) => void;
 }
 
 const SHAPE_CATEGORIES = [
@@ -77,17 +80,20 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({
   onToggleDiagramOnly,
   onCancelDiagramOnly,
   onSelectTab,
+  selectedShapeType,
+  onSelectShapeType,
+  onOpenQASolver,
 }) => {
   const [params, setParams] = useState<Geometry2DParams>({
-    type: 'rhombus',
-    sideA: 10,
+    type: selectedShapeType || 'square',
+    sideA: 8,
     sideB: 8,
-    sideC: 10,
+    sideC: 8,
     sideD: 8,
-    diagonal1: 16,
-    diagonal2: 12,
-    angleDeg: 60,
-    height: 6,
+    diagonal1: 11.31,
+    diagonal2: 11.31,
+    angleDeg: 90,
+    height: 8,
     showDiagonals: true,
     showAngles: true,
     showAltitudes: true,
@@ -106,6 +112,7 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({
   };
 
   const handleShapeSelect = (sId: Geometry2DShapeType) => {
+    onSelectShapeType?.(sId);
     switch (sId) {
       case 'square':
         setParams((p) => ({ ...p, type: sId, sideA: 8 }));
@@ -156,6 +163,12 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({
         setParams((p) => ({ ...p, type: sId }));
     }
   };
+
+  React.useEffect(() => {
+    if (selectedShapeType && selectedShapeType !== params.type) {
+      handleShapeSelect(selectedShapeType);
+    }
+  }, [selectedShapeType]);
 
   // Render SVG based on active geometry type
   const renderGeometrySVG = () => {
@@ -1098,89 +1111,119 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({
       <div className={`flex flex-col ${projectorMode ? 'lg:flex-row' : 'lg:flex-row'} gap-5`}>
         {/* LEFT COLUMN / DOMINANT CANVAS */}
         <div className={`${projectorMode ? 'lg:w-8/12' : 'lg:w-7/12'} flex flex-col gap-4`}>
-          {/* Shape Selector Bar */}
-          <div className="bg-slate-900/95 border border-slate-800 rounded-2xl p-3.5 shadow-xl space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
-              {/* Quick module jumps: 2D, 3D, Dice, Cube Slicing */}
-              {onSelectTab && (
-                <div className="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800">
-                  <button
-                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all flex items-center gap-1"
-                  >
-                    <span>📐</span>
-                    <span>{language === 'hi' ? '2D आकृतियां' : '2D Shapes'}</span>
-                  </button>
-                  <button
-                    onClick={() => onSelectTab('shapes_3d')}
-                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                    title={language === 'hi' ? '3D ठोस पर जाएं' : 'Switch to 3D Solids'}
-                  >
-                    <span>📦</span>
-                    <span>{language === 'hi' ? '3D ठोस' : '3D Solids'}</span>
-                  </button>
-                  <button
-                    onClick={() => onSelectTab('dice_reasoning')}
-                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                    title={language === 'hi' ? 'पासा रीज़निंग पर जाएं' : 'Switch to Dice Reasoning'}
-                  >
-                    <span>🎲</span>
-                    <span>{language === 'hi' ? 'पासा (Dice)' : 'Dice'}</span>
-                  </button>
-                  <button
-                    onClick={() => onSelectTab('cutting_lab')}
-                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                    title={language === 'hi' ? 'घन काटना लैब पर जाएं' : 'Switch to Cube Slicing'}
-                  >
-                    <span>🧊</span>
-                    <span>{language === 'hi' ? 'घन काटना' : 'Cube Slicing'}</span>
-                  </button>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                <button
-                  id="btn-trigger-only-diagram-2d"
-                  onClick={onToggleDiagramOnly}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                  title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
-                >
-                  <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
-                </button>
+          {/* Top Toolbar: Active Shape & Controls */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 sm:p-3 backdrop-blur-md flex flex-wrap items-center justify-between gap-2 shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shrink-0">
+                <Square className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-1.5">
+                  <span>
+                    {language === 'hi'
+                      ? SHAPE_CATEGORIES.flatMap((c) => c.shapes).find((s) => s.id === params.type)?.nameHi || '2D आकृति'
+                      : SHAPE_CATEGORIES.flatMap((c) => c.shapes).find((s) => s.id === params.type)?.nameEn || '2D Shape'}
+                  </span>
+                  <span className="text-[10px] font-mono font-normal px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    100% Offline
+                  </span>
+                </h2>
               </div>
             </div>
 
-            <div className="space-y-2.5">
-              {SHAPE_CATEGORIES.map((cat, idx) => (
-                <div key={idx}>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 px-1">
-                    {language === 'hi' ? cat.categoryHi : cat.categoryEn}
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-1.5">
-                    {cat.shapes.map((s) => {
-                      const isSelected = params.type === s.id;
-                      const Icon = s.icon;
-                      return (
-                        <button
-                          key={s.id}
-                          id={`shape-btn-${s.id}`}
-                          onClick={() => handleShapeSelect(s.id)}
-                          className={`flex items-center gap-1.5 p-2 rounded-xl border text-xs font-medium transition-all text-left ${
-                            isSelected
-                              ? 'bg-indigo-600/30 border-indigo-400 text-white shadow-lg shadow-indigo-950/80 ring-1 ring-indigo-400'
-                              : 'bg-slate-950/70 border-slate-800/90 text-slate-400 hover:text-slate-100 hover:border-slate-700'
-                          }`}
-                        >
-                          <Icon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-indigo-300' : 'text-slate-500'}`} />
-                          <span className="truncate">{language === 'hi' ? s.nameHi : s.nameEn}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Overlays / Style Settings Button */}
+              <button
+                onClick={() => setIsCompactSettingsOpen(!isCompactSettingsOpen)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                  isCompactSettingsOpen
+                    ? 'bg-indigo-950/80 text-indigo-300 border-indigo-500/60'
+                    : 'bg-slate-950 text-slate-400 hover:text-white border-slate-800'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>{language === 'hi' ? 'विशेषताएँ व रंग' : 'Overlays & Color'}</span>
+              </button>
+
+              {/* Only Diagram Button */}
+              <button
+                id="btn-trigger-only-diagram-2d"
+                onClick={onToggleDiagramOnly}
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
+              >
+                <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
+              </button>
             </div>
           </div>
+
+          {/* Expandable Settings / Overlays Drawer */}
+          {isCompactSettingsOpen && (
+            <div className="p-3 bg-slate-950/90 rounded-xl border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <label className="text-slate-400 font-medium">{language === 'hi' ? 'रंग:' : 'Color:'}</label>
+                <input
+                  type="color"
+                  value={params.color}
+                  onChange={(e) => updateParam('color', e.target.value)}
+                  className="w-7 h-7 rounded-md cursor-pointer border border-slate-700 bg-transparent"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                  <input
+                    type="checkbox"
+                    checked={params.showDiagonals}
+                    onChange={(e) => updateParam('showDiagonals', e.target.checked)}
+                    className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  {language === 'hi' ? 'विकर्ण (Diagonals)' : 'Diagonals'}
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                  <input
+                    type="checkbox"
+                    checked={params.showAngles}
+                    onChange={(e) => updateParam('showAngles', e.target.checked)}
+                    className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  {language === 'hi' ? 'कोण (Angles)' : 'Angles'}
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                  <input
+                    type="checkbox"
+                    checked={params.showAltitudes}
+                    onChange={(e) => updateParam('showAltitudes', e.target.checked)}
+                    className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  {language === 'hi' ? 'ऊंचाई (Altitude)' : 'Altitude'}
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                  <input
+                    type="checkbox"
+                    checked={params.showIncircle}
+                    onChange={(e) => updateParam('showIncircle', e.target.checked)}
+                    className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  {language === 'hi' ? 'अंतःवृत्त (Incircle)' : 'Incircle'}
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                  <input
+                    type="checkbox"
+                    checked={params.showCircumcircle}
+                    onChange={(e) => updateParam('showCircumcircle', e.target.checked)}
+                    className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  {language === 'hi' ? 'परिवृत्त (Circumcircle)' : 'Circumcircle'}
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* 2D Interactive Vector Canvas Card */}
           <div className="bg-slate-900/95 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
