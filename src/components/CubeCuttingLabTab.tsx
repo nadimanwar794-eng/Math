@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CubeCutParams, CubeFace, FaceColors, MiniCubeData } from '../types';
 import { generateMiniCubes } from '../utils/mathFormulas';
 import { ThreeCanvas } from './ThreeCanvas';
+import { ExportActionMenu } from './ExportActionMenu';
 import { Box, CheckCircle2, ChevronRight, Eye, Filter, Info, Layers, Maximize2, Palette, Sparkles, Wand2, X } from 'lucide-react';
 
 interface CubeCuttingLabTabProps {
@@ -80,6 +81,72 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
   const totalCuts = params.isCuboid
     ? Math.max(0, params.nx - 1) + Math.max(0, params.ny - 1) + Math.max(0, params.nz - 1)
     : 3 * Math.max(0, params.n - 1);
+
+  const getCubePlainText = () => {
+    const title = params.isCuboid
+      ? `Cuboid Slicing (${params.nx}×${params.ny}×${params.nz})`
+      : `Cube Slicing (${params.n}×${params.n}×${params.n})`;
+    return [
+      `=== ${title} ===`,
+      `[Total Cuts / कुल कट]: ${totalCuts}`,
+      `[Total Small Cubes / कुल छोटे घन]: ${counts.total}`,
+      `\n[Breakdown of Painted Faces / रंगे फलकों की संख्या]:`,
+      `  • 3 Faces Painted (Corner Cubes): ${counts.corner3Faces} [Formula: ${formulas.corner}]`,
+      `  • 2 Faces Painted (Middle Edge Cubes): ${counts.edge2Faces} [Formula: ${formulas.edge}]`,
+      `  • 1 Face Painted (Central Face Cubes): ${counts.central1Face} [Formula: ${formulas.central}]`,
+      `  • 0 Faces Painted (Inner Core Cubes): ${counts.inner0Faces} [Formula: ${formulas.inner}]`,
+    ].join('\n');
+  };
+
+  const getCubeHTMLBody = () => {
+    const title = params.isCuboid
+      ? `${language === 'hi' ? 'घनाभ कटिंग प्रयोगशाला' : 'Cuboid Slicing Lab'} (${params.nx}×${params.ny}×${params.nz})`
+      : `${language === 'hi' ? 'घन कटिंग प्रयोगशाला' : 'Cube Slicing Lab'} (${params.n}×${params.n}×${params.n})`;
+
+    return `
+      <div class="page-title">${title}</div>
+      
+      <div class="section-title">1. ${language === 'hi' ? 'बुनियादी पैरामीटर' : 'Basic Parameters'}</div>
+      <div class="grid-data">
+        <div class="data-card">
+          <div class="data-label">${language === 'hi' ? 'विभाजन (n)' : 'Division (n)'}</div>
+          <div class="data-value">${params.isCuboid ? `${params.nx} × ${params.ny} × ${params.nz}` : `${params.n} × ${params.n} × ${params.n}`}</div>
+        </div>
+        <div class="data-card">
+          <div class="data-label">${language === 'hi' ? 'कुल कट (Cuts)' : 'Total Cuts'}</div>
+          <div class="data-value">${totalCuts}</div>
+        </div>
+        <div class="data-card">
+          <div class="data-label">${language === 'hi' ? 'कुल छोटे घन' : 'Total Mini Cubes'}</div>
+          <div class="data-value">${counts.total}</div>
+        </div>
+      </div>
+      
+      <div class="section-title">2. ${language === 'hi' ? 'रंगे हुए फलकों का विभाजन व सूत्र' : 'Painted Faces Breakdown & Formulas'}</div>
+      <div class="grid-data">
+        <div class="data-card" style="background:#fee2e2; border-color:#fca5a5;">
+          <div class="data-label" style="color:#b91c1c;">3 फलक रंगे (Corner/शीर्ष)</div>
+          <div class="data-value" style="color:#7f1d1d;">${counts.corner3Faces}</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:4px;">सूत्र: ${formulas.corner}</div>
+        </div>
+        <div class="data-card" style="background:#fef3c7; border-color:#fcd34d;">
+          <div class="data-label" style="color:#b45309;">2 फलक रंगे (Edge/मध्य)</div>
+          <div class="data-value" style="color:#78350f;">${counts.edge2Faces}</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:4px;">सूत्र: ${formulas.edge}</div>
+        </div>
+        <div class="data-card" style="background:#dbeafe; border-color:#93c5fd;">
+          <div class="data-label" style="color:#1d4ed8;">1 फलक रंगा (Face/केंद्रीय)</div>
+          <div class="data-value" style="color:#1e3a8a;">${counts.central1Face}</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:4px;">सूत्र: ${formulas.central}</div>
+        </div>
+        <div class="data-card" style="background:#f3f4f6; border-color:#d1d5db;">
+          <div class="data-label" style="color:#4b5563;">0 फलक रंगे (Inner/अंतःकेंद्रीय)</div>
+          <div class="data-value" style="color:#111827;">${counts.inner0Faces}</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:4px;">सूत्र: ${formulas.inner}</div>
+        </div>
+      </div>
+    `;
+  };
 
   // =========================================================================
   // ONLY DIAGRAM MODE (ZEN DIAGRAM VIEW)
@@ -171,7 +238,15 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
             </button>
           </div>
 
-          {/* Quick Trigger for Only Diagram Mode */}
+          {/* Quick Trigger for Only Diagram Mode & Export */}
+          <ExportActionMenu
+            title={params.isCuboid ? 'Cuboid Cutting Lab' : 'Cube Cutting Lab'}
+            filename={`cube_slicing_${params.isCuboid ? 'cuboid' : 'cube'}_${Date.now()}`}
+            getHTMLContent={getCubeHTMLBody}
+            getPlainText={getCubePlainText}
+            language={language}
+          />
+
           <button
             id="btn-trigger-only-diagram-cube"
             onClick={onToggleDiagramOnly}

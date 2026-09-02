@@ -16,6 +16,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { OfflineSolution } from '../utils/mathEngineOffline';
+import { ExportActionMenu } from './ExportActionMenu';
 
 interface TextbookWhitePageProps {
   solution: OfflineSolution;
@@ -30,10 +31,9 @@ export const TextbookWhitePage: React.FC<TextbookWhitePageProps> = ({
 }) => {
   const [paperStyle, setPaperStyle] = useState<'plain' | 'ruled' | 'grid'>('plain');
   const [fontSizeLevel, setFontSizeLevel] = useState<number>(1); // 0: compact, 1: standard, 2: large
-  const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    const text = [
+  const getPlainText = () => {
+    return [
       `=== ${language === 'hi' ? solution.titleHi : solution.titleEn} ===`,
       questionText ? `[${language === 'hi' ? 'प्रश्न' : 'Question'}]: ${questionText}` : '',
       `[${language === 'hi' ? 'दिया गया है' : 'Given Data'}]:`,
@@ -45,14 +45,57 @@ export const TextbookWhitePage: React.FC<TextbookWhitePageProps> = ({
       `\n[${language === 'hi' ? 'अंतिम उत्तर' : 'Final Answer'}]: ${language === 'hi' ? solution.finalAnswerHi : solution.finalAnswerEn}`,
       solution.tipsHi ? `\n[${language === 'hi' ? 'किताब की टिप्पणी' : 'Note'}]: ${language === 'hi' ? solution.tipsHi : solution.tipsEn}` : '',
     ].filter(Boolean).join('\n');
-
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const getHTMLBody = () => {
+    const title = language === 'hi' ? solution.titleHi : solution.titleEn;
+    const givenItems = solution.givenData
+      .map(
+        (d) => `<div class="data-card">
+          <div class="data-label">${language === 'hi' ? d.labelHi : d.labelEn}</div>
+          <div class="data-value">${d.value}</div>
+        </div>`
+      )
+      .join('');
+
+    const formulas = solution.formulasUsed
+      .map((f) => `<div class="formula-pill">${f}</div>`)
+      .join('');
+
+    const steps = (language === 'hi' ? solution.stepsHi : solution.stepsEn)
+      .map(
+        (s, i) => `<div class="step-item">
+          <div class="step-num">${i + 1}</div>
+          <div>${s}</div>
+        </div>`
+      )
+      .join('');
+
+    const finalAnswer = language === 'hi' ? solution.finalAnswerHi : solution.finalAnswerEn;
+    const note = language === 'hi' ? solution.tipsHi : solution.tipsEn;
+
+    return `
+      <div class="page-title">${title}</div>
+      ${questionText ? `<div class="question-box"><strong>${language === 'hi' ? 'प्रश्न: ' : 'Problem: '}</strong>${questionText}</div>` : ''}
+      
+      <div class="section-title">1. ${language === 'hi' ? 'दिया गया है (Given Data)' : 'Given Parameters'}</div>
+      <div class="grid-data">${givenItems}</div>
+      
+      <div class="section-title">2. ${language === 'hi' ? 'प्रयुक्त सूत्र (Formulas Used)' : 'Formulas Applied'}</div>
+      <div class="formula-box">${formulas}</div>
+      
+      <div class="section-title">3. ${language === 'hi' ? 'चरणबद्ध हल (Step-by-Step Derivation)' : 'Step-by-Step Derivation'}</div>
+      <div class="steps-list">${steps}</div>
+      
+      <div class="answer-box">
+        <div>
+          <div class="answer-title">${language === 'hi' ? 'अंतिम उत्तर (Final Result)' : 'Final Answer'}</div>
+          <div class="answer-val">${finalAnswer}</div>
+        </div>
+      </div>
+      
+      ${note ? `<div class="question-box" style="background:#eef2ff; border-color:#6366f1;"><strong>${language === 'hi' ? 'महत्वपूर्ण पुस्तक नोट: ' : 'Important Note: '}</strong>${note}</div>` : ''}
+    `;
   };
 
   const fontSizes = [
@@ -85,7 +128,7 @@ export const TextbookWhitePage: React.FC<TextbookWhitePageProps> = ({
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Paper style selector */}
           <div className="flex bg-slate-950 rounded-lg p-0.5 border border-slate-800 text-[11px]">
             <button
@@ -96,7 +139,7 @@ export const TextbookWhitePage: React.FC<TextbookWhitePageProps> = ({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              {language === 'hi' ? 'कोरा पृष्ठ' : 'Plain'}
+              {language === 'hi' ? 'कोरा' : 'Plain'}
             </button>
             <button
               onClick={() => setPaperStyle('ruled')}
@@ -106,7 +149,7 @@ export const TextbookWhitePage: React.FC<TextbookWhitePageProps> = ({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              {language === 'hi' ? 'रूल्ड नोटबुक' : 'Ruled'}
+              {language === 'hi' ? 'रूल्ड' : 'Ruled'}
             </button>
             <button
               onClick={() => setPaperStyle('grid')}
@@ -116,7 +159,7 @@ export const TextbookWhitePage: React.FC<TextbookWhitePageProps> = ({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              {language === 'hi' ? 'ग्राफ शीट' : 'Grid'}
+              {language === 'hi' ? 'ग्राफ' : 'Grid'}
             </button>
           </div>
 
@@ -131,7 +174,7 @@ export const TextbookWhitePage: React.FC<TextbookWhitePageProps> = ({
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <span className="text-[10px] font-mono px-1 font-bold text-indigo-300">
-              {fontSizeLevel === 0 ? 'स्मॉल' : fontSizeLevel === 1 ? 'मानक' : 'बड़ा'}
+              {fontSizeLevel === 0 ? 'छोटा' : fontSizeLevel === 1 ? 'मानक' : 'बड़ा'}
             </span>
             <button
               onClick={() => setFontSizeLevel((l) => Math.min(2, l + 1))}
@@ -143,24 +186,14 @@ export const TextbookWhitePage: React.FC<TextbookWhitePageProps> = ({
             </button>
           </div>
 
-          {/* Action Buttons */}
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium transition-all"
-            title="Copy Solution"
-          >
-            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-            <span>{copied ? (language === 'hi' ? 'कॉपी हुआ' : 'Copied') : (language === 'hi' ? 'कॉपी' : 'Copy')}</span>
-          </button>
-
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold transition-all shadow"
-            title="Print Page"
-          >
-            <Printer className="w-3 h-3" />
-            <span>{language === 'hi' ? 'प्रिंट / PDF' : 'Print'}</span>
-          </button>
+          {/* Export and Print Menu */}
+          <ExportActionMenu
+            title={language === 'hi' ? solution.titleHi : solution.titleEn}
+            filename={`sol_${solution.category}_${Date.now()}`}
+            getHTMLContent={getHTMLBody}
+            getPlainText={getPlainText}
+            language={language}
+          />
         </div>
       </div>
 

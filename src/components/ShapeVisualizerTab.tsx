@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ShapeParams, ShapeType } from '../types';
 import { calculateShapeMetrics } from '../utils/mathFormulas';
 import { ThreeCanvas } from './ThreeCanvas';
+import { ExportActionMenu } from './ExportActionMenu';
 import {
   Box,
   Calculator,
@@ -288,6 +289,69 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
   const csaArea = 2 * Math.PI * r * h;
   const tsaArea = csaArea + topBaseArea + botBaseArea;
 
+  const currentShapeObj = shapeList.find((s) => s.type === params.type) || shapeList[0];
+
+  const getShapePlainText = () => {
+    const sName = language === 'hi' ? currentShapeObj.nameHi : currentShapeObj.nameEn;
+    const formulas = language === 'hi' ? metrics.formulasHi : metrics.formulasEn;
+    return [
+      `=== 3D Geometry: ${sName} ===`,
+      `[Dimensions / विमाएं]:`,
+      params.radius ? `  • Radius (r): ${params.radius} cm` : '',
+      params.height ? `  • Height (h): ${params.height} cm` : '',
+      params.length ? `  • Length (l): ${params.length} cm` : '',
+      params.width ? `  • Width (w): ${params.width} cm` : '',
+      params.slantHeight ? `  • Slant Height (l): ${params.slantHeight.toFixed(2)} cm` : '',
+      `\n[Calculated Metrics / गणना किए गए मान]:`,
+      `  • Volume (आयतन V): ${metrics.volume.toFixed(2)} cm³`,
+      `  • Curved Surface Area (वक्र पृष्ठ CSA): ${metrics.curvedSurfaceArea.toFixed(2)} cm²`,
+      `  • Total Surface Area (कुल पृष्ठ TSA): ${metrics.totalSurfaceArea.toFixed(2)} cm²`,
+      `\n[Formulas / सूत्र]:`,
+      ...Object.entries(formulas).map(([k, v]) => `  • ${k}: ${v}`),
+    ].filter(Boolean).join('\n');
+  };
+
+  const getShapeHTMLBody = () => {
+    const sName = language === 'hi' ? currentShapeObj.nameHi : currentShapeObj.nameEn;
+    const formulas = language === 'hi' ? metrics.formulasHi : metrics.formulasEn;
+    const formulaPills = Object.entries(formulas)
+      .map(([k, v]) => `<div class="formula-pill"><strong>${k}:</strong> ${v}</div>`)
+      .join('');
+
+    return `
+      <div class="page-title">${sName} - 3D Mathematical Analysis</div>
+      
+      <div class="section-title">1. ${language === 'hi' ? 'दिए गए माप (Dimensions)' : 'Input Dimensions'}</div>
+      <div class="grid-data">
+        ${params.radius ? `<div class="data-card"><div class="data-label">त्रिज्या (Radius r)</div><div class="data-value">${params.radius} cm</div></div>` : ''}
+        ${params.height ? `<div class="data-card"><div class="data-label">ऊंचाई (Height h)</div><div class="data-value">${params.height} cm</div></div>` : ''}
+        ${params.length ? `<div class="data-card"><div class="data-label">लंबाई (Length l)</div><div class="data-value">${params.length} cm</div></div>` : ''}
+        ${params.width ? `<div class="data-card"><div class="data-label">चौड़ाई (Width w/b)</div><div class="data-value">${params.width} cm</div></div>` : ''}
+      </div>
+      
+      <div class="section-title">2. ${language === 'hi' ? 'मानक सूत्र (Standard Formulas)' : 'Standard Formulas'}</div>
+      <div class="formula-box">
+        ${formulaPills}
+      </div>
+      
+      <div class="section-title">3. ${language === 'hi' ? 'गणना परिणाम (Calculated Results)' : 'Calculated Results'}</div>
+      <div class="grid-data">
+        <div class="data-card" style="background:#ecfdf5; border-color:#a7f3d0;">
+          <div class="data-label" style="color:#059669;">आयतन (Volume V)</div>
+          <div class="data-value" style="color:#064e3b;">${metrics.volume.toFixed(2)} cm³</div>
+        </div>
+        <div class="data-card" style="background:#eff6ff; border-color:#bfdbfe;">
+          <div class="data-label" style="color:#2563eb;">वक्र पृष्ठ (Curved Surface CSA)</div>
+          <div class="data-value" style="color:#1e3a8a;">${metrics.curvedSurfaceArea.toFixed(2)} cm²</div>
+        </div>
+        <div class="data-card" style="background:#faf5ff; border-color:#e9d5ff;">
+          <div class="data-label" style="color:#9333ea;">कुल पृष्ठ (Total Surface TSA)</div>
+          <div class="data-value" style="color:#581c87;">${metrics.totalSurfaceArea.toFixed(2)} cm²</div>
+        </div>
+      </div>
+    `;
+  };
+
   // =========================================================================
   // ONLY DIAGRAM MODE (ZEN DIAGRAM VIEW)
   // Everything else is hidden, only the 3D solid diagram is shown with a single cancel button
@@ -367,8 +431,17 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
           </div>
         </div>
 
-        {/* View Mode Switcher (16:9 Screen vs Split View + Only Diagram) */}
-        <div className="flex items-center gap-1.5">
+        {/* View Mode Switcher (16:9 Screen vs Split View + Only Diagram + Export/Print) */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Print / Download MHTML Menu */}
+          <ExportActionMenu
+            title={`3D Geometry: ${language === 'hi' ? currentShapeObj.nameHi : currentShapeObj.nameEn}`}
+            filename={`3d_shape_${params.type}_${Date.now()}`}
+            getHTMLContent={getShapeHTMLBody}
+            getPlainText={getShapePlainText}
+            language={language}
+          />
+
           <button
             id="btn-trigger-only-diagram-shapes"
             onClick={onToggleDiagramOnly}
