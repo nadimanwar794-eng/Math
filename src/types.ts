@@ -1,6 +1,7 @@
 export type ShapeType =
   | 'cylinder'          // बेलन
   | 'hollow_cylinder'   // खोखला बेलन
+  | 'wheel'             // पहिया (Wheel / Roller)
   | 'cone'              // शंकु
   | 'cube'              // घन
   | 'cuboid'            // घनाभ

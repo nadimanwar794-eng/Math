@@ -97,6 +97,53 @@ export function calculateShapeMetrics(params: ShapeParams): MensurationResult {
       };
     }
 
+    case 'wheel': {
+      // पहिया (Wheel / Roller)
+      const r = Math.max(0.1, radius);
+      const w = Math.max(0.1, width || height || 1.5);
+      const circumference = 2 * PI * r;
+      const faceArea = PI * r * r;
+      const contactArea = 2 * PI * r * w; // Road contact area per turn (roller)
+      const volume = faceArea * w;
+      const tsa = contactArea + 2 * faceArea;
+      const revsIn1Km = (100000 / circumference).toFixed(1);
+
+      return {
+        volume,
+        curvedSurfaceArea: contactArea,
+        totalSurfaceArea: tsa,
+        perimeter: circumference,
+        stepsHi: [
+          `पहिए की त्रिज्या (r) = ${r} सेमी, व्यास (D) = ${(2 * r).toFixed(2)} सेमी, चौड़ाई (w) = ${w} सेमी`,
+          `1 चक्कर में तय की गई दूरी = परिधि (Circumference) = 2 × π × r = 2 × 3.1416 × ${r} = ${circumference.toFixed(2)} सेमी`,
+          `रोलर का 1 चक्कर में दबाया गया क्षेत्रफल = 2 × π × r × w = ${contactArea.toFixed(2)} वर्ग सेमी`,
+          `पहिए का सम्मुख क्षेत्रफल (Face Area) = π × r² = 3.1416 × ${r}² = ${faceArea.toFixed(2)} वर्ग सेमी`,
+          `1 किलोमीटर (1,00,000 सेमी) दूरी में कुल चक्कर = 1,00,000 ÷ ${circumference.toFixed(2)} = ${revsIn1Km} चक्कर`,
+        ],
+        stepsEn: [
+          `Wheel radius (r) = ${r} cm, Diameter (D) = ${(2 * r).toFixed(2)} cm, Width (w) = ${w} cm`,
+          `Distance in 1 revolution = Circumference (C) = 2πr = 2 × π × ${r} = ${circumference.toFixed(2)} cm`,
+          `Road surface area rolled in 1 turn = 2πr × w = ${contactArea.toFixed(2)} sq cm`,
+          `Wheel circular face area = πr² = π × ${r}² = ${faceArea.toFixed(2)} sq cm`,
+          `Revolutions required for 1 km distance = 100,000 / ${circumference.toFixed(2)} = ${revsIn1Km} revs`,
+        ],
+        formulasHi: {
+          '1 चक्कर में दूरी (Circumference)': 'दूरी = 2 · π · r = π · D',
+          'पहिए का व्यास (Diameter)': 'D = 2 · r',
+          'चक्करों की संख्या (Revolutions)': 'N = कुल दूरी ÷ 2πr',
+          'रोलर संपर्क क्षेत्रफल (Road Area)': 'Area = 2 · π · r · w',
+          'पहिया वृत्ताकार क्षेत्रफल': 'A = π · r²',
+        },
+        formulasEn: {
+          'Distance in 1 rev (Circumference)': 'Distance = 2 · π · r = π · D',
+          'Wheel Diameter': 'D = 2 · r',
+          'Number of Revolutions': 'N = Total Distance ÷ (2πr)',
+          'Roller Road Area in 1 turn': 'Area = 2 · π · r · w',
+          'Circular Face Area': 'A = π · r²',
+        },
+      };
+    }
+
     case 'cone': {
       // शंकु
       const r = Math.max(0.1, radius);

@@ -130,6 +130,13 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
           { step: 3, label: lang === 'hi' ? 'चरण 3: तिर्यक वक्र पृष्ठ खुला' : 'Step 3: Lateral Band Unrolls', desc: lang === 'hi' ? 'वक्र पृष्ठ वलयाकार त्रिज्यखंड के रूप में खुला' : 'Slanted mantle opens into annular sector' },
           { step: 4, label: lang === 'hi' ? 'चरण 4: पूर्ण 2D नेट (Full Net)' : 'Step 4: Full 2D Net', desc: lang === 'hi' ? 'कुल क्षेत्रफल = π(r₁+r₂)l + πr₁² + πr₂²' : 'Total Area = π(r₁+r₂)l + πr₁² + πr₂²' },
         ];
+      case 'wheel':
+        return [
+          { step: 0, label: lang === 'hi' ? '3D ठोस पहिया (Solid 3D Wheel)' : 'Solid 3D Wheel', desc: lang === 'hi' ? 'पूर्ण 3D पहिया (टायर, रिम, स्पोक्स, एक्सल)' : 'Complete 3D wheel with rim & spokes' },
+          { step: 1, label: lang === 'hi' ? 'चरण 1: 3D घटक अलग (3D Exploded View)' : 'Step 1: Exploded 3D Parts', desc: lang === 'hi' ? 'टायर रबर, स्टील रिम व केंद्रीय हब 3D में अलग' : 'Tire, steel rim and central hub separate in 3D' },
+          { step: 2, label: lang === 'hi' ? 'चरण 2: परिधि अनरोलिंग (Circumference 2πr)' : 'Step 2: Unrolling Circumference', desc: lang === 'hi' ? 'पहिए की परिधि सड़क पर 2πr सीधी रेखा में खुलना शुरू' : 'Circumference rolls out along the ground track' },
+          { step: 3, label: lang === 'hi' ? 'चरण 3: 1 चक्कर दूरी = 2πr (Full Revolution)' : 'Step 3: 1 Rev = 2πr Distance', desc: lang === 'hi' ? '1 चक्कर में तय दूरी = 2πr (रोलर संपर्क क्षेत्रफल = 2πr × w)' : 'Distance in 1 revolution = 2πr (contact area = 2πr × w)' },
+        ];
       default:
         return [
           { step: 0, label: lang === 'hi' ? '3D ठोस (Solid)' : 'Solid', desc: lang === 'hi' ? 'पूर्ण 3D आकृति' : 'Solid 3D shape' },
@@ -245,6 +252,13 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
       defaultParams: { length: 5, height: 7, color: '#a855f7' },
     },
     {
+      type: 'wheel',
+      nameHi: 'पहिया (Wheel / Roller)',
+      nameEn: 'Wheel',
+      icon: '⚙️',
+      defaultParams: { radius: 4, width: 1.5, height: 1.5, color: '#475569' },
+    },
+    {
       type: 'pyramid',
       nameHi: 'पिरामिड (Pyramid)',
       nameEn: 'Square Pyramid',
@@ -311,7 +325,7 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
         </div>
 
         {/* Minimal Floating Explode Slider at Bottom Center if deconstructible */}
-        {(params.type === 'cylinder' || params.type === 'cone' || params.type === 'frustum' || params.type === 'cube' || params.type === 'cuboid') && (
+        {(params.type === 'cylinder' || params.type === 'wheel' || params.type === 'cone' || params.type === 'frustum' || params.type === 'cube' || params.type === 'cuboid' || params.type === 'pyramid' || params.type === 'prism' || params.type === 'hollow_cylinder' || params.type === 'hemisphere' || params.type === 'sphere') && (
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-40 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-2xl px-4 py-2 flex items-center gap-3 text-xs text-white shadow-2xl">
             <span className="text-slate-300 font-semibold">{language === 'hi' ? 'घटक पृथक्करण:' : 'Deconstruct:'}</span>
             <input
@@ -564,6 +578,7 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
               {/* Radius */}
               {(params.type === 'cylinder' ||
                 params.type === 'hollow_cylinder' ||
+                params.type === 'wheel' ||
                 params.type === 'cone' ||
                 params.type === 'sphere' ||
                 params.type === 'hemisphere' ||
@@ -695,17 +710,19 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
                 </div>
               )}
 
-              {/* Width for Cuboid */}
-              {params.type === 'cuboid' && (
+              {/* Width for Cuboid & Wheel */}
+              {(params.type === 'cuboid' || params.type === 'wheel') && (
                 <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-300 font-medium">{language === 'hi' ? 'चौड़ाई (b):' : 'Breadth (b):'}</span>
+                    <span className="text-slate-300 font-medium">
+                      {params.type === 'wheel' ? (language === 'hi' ? 'पहिया चौड़ाई (w):' : 'Width (w):') : (language === 'hi' ? 'चौड़ाई (b):' : 'Breadth (b):')}
+                    </span>
                     <span className="text-purple-400 font-mono font-bold">{params.width} cm</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="range"
-                      min="1"
+                      min="0.5"
                       max="100"
                       step="0.5"
                       value={params.width}
@@ -1030,9 +1047,10 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
               </h4>
 
               <div className="space-y-3.5">
-                {/* Radius Input for Cylinder, Hollow Cylinder, Cone, Sphere, Hemisphere, Frustum */}
+                {/* Radius Input for Cylinder, Hollow Cylinder, Wheel, Cone, Sphere, Hemisphere, Frustum */}
                 {(params.type === 'cylinder' ||
                   params.type === 'hollow_cylinder' ||
+                  params.type === 'wheel' ||
                   params.type === 'cone' ||
                   params.type === 'sphere' ||
                   params.type === 'hemisphere' ||
@@ -1215,19 +1233,25 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
                   </div>
                 )}
 
-                {/* Width for Cuboid */}
-                {params.type === 'cuboid' && (
+                {/* Width for Cuboid & Wheel */}
+                {(params.type === 'cuboid' || params.type === 'wheel') && (
                   <div>
                     <div className="flex justify-between text-xs font-medium mb-1">
                       <span className="text-slate-300">
-                        {language === 'hi' ? 'चौड़ाई (Breadth/Width b):' : 'Breadth / Width (b):'}
+                        {params.type === 'wheel'
+                          ? language === 'hi'
+                            ? 'पहिए/रोलर की चौड़ाई (Width w):'
+                            : 'Wheel/Roller Width (w):'
+                          : language === 'hi'
+                          ? 'चौड़ाई (Breadth/Width b):'
+                          : 'Breadth / Width (b):'}
                       </span>
                       <span className="text-purple-400 font-mono font-bold">{params.width} cm</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <input
                         type="range"
-                        min="1"
+                        min="0.5"
                         max="100"
                         step="0.5"
                         value={params.width}
@@ -1325,6 +1349,71 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
                   {metrics.slantHeight ? '√(r² + h²)' : metrics.spaceDiagonal ? '√(l² + b² + h²)' : '2 × r'}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Special Deconstructed Components Breakdown Card (For Wheel) */}
+      {params.type === 'wheel' && (
+        <div className="bg-slate-900/90 border border-amber-900/60 rounded-2xl p-4 sm:p-5 backdrop-blur-md">
+          <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+            <span className="text-lg">⚙️</span>
+            {language === 'hi'
+              ? 'पहिया / रोलर के घटकों का सचित्र गणितीय विश्लेषण (Wheel Breakdown)'
+              : 'Wheel & Roller Deconstructed Parts Analysis'}
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Circumference Distance */}
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-amber-500/40">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  {language === 'hi' ? '1. 1 चक्कर में दूरी (परिधि)' : '1. Distance in 1 Rev'}
+                </span>
+                <span className="text-xs font-mono font-bold text-amber-300">2πr</span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1.5 font-mono">
+                = 2 × π × {r} = {(2 * Math.PI * r).toFixed(2)} cm
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {language === 'hi' ? 'सड़क पर 1 पूरे चक्कर में तय की गई दूरी' : 'Ground distance rolled per revolution'}
+              </p>
+            </div>
+
+            {/* Roller Road Contact */}
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-emerald-500/40">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                  {language === 'hi' ? '2. 1 चक्कर में दबाया क्षेत्रफल' : '2. Contact Area'}
+                </span>
+                <span className="text-xs font-mono font-bold text-emerald-300">2πrw</span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1.5 font-mono">
+                = 2 × π × {r} × {params.width || 1.5} = {(2 * Math.PI * r * (params.width || 1.5)).toFixed(2)} cm²
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {language === 'hi' ? 'रोलर द्वारा सड़क समतल करने का क्षेत्रफल' : 'Road area covered by roller per turn'}
+              </p>
+            </div>
+
+            {/* Revolutions in 1 km */}
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-cyan-500/40">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+                  {language === 'hi' ? '3. 1 किमी (1000m) में चक्कर' : '3. Revs in 1 km'}
+                </span>
+                <span className="text-xs font-mono font-bold text-cyan-300">10⁵ / 2πr</span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1.5 font-mono">
+                = 1,00,000 ÷ {(2 * Math.PI * r).toFixed(2)} = {(100000 / (2 * Math.PI * r)).toFixed(1)} {language === 'hi' ? 'चक्कर' : 'revs'}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {language === 'hi' ? 'कुल दूरी ÷ 1 चक्कर की दूरी' : 'Total Distance ÷ Circumference'}
+              </p>
             </div>
           </div>
         </div>
