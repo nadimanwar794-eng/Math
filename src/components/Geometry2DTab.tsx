@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Geometry2DParams, Geometry2DShapeType } from '../types';
+import { ActiveTab, Geometry2DParams, Geometry2DShapeType } from '../types';
 import { calculateGeometry2D } from '../utils/mathFormulas2D';
 import {
   Square,
@@ -31,6 +31,7 @@ interface Geometry2DTabProps {
   diagramOnlyMode?: boolean;
   onToggleDiagramOnly?: () => void;
   onCancelDiagramOnly?: () => void;
+  onSelectTab?: (tab: ActiveTab) => void;
 }
 
 const SHAPE_CATEGORIES = [
@@ -75,6 +76,7 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({
   diagramOnlyMode = false,
   onToggleDiagramOnly,
   onCancelDiagramOnly,
+  onSelectTab,
 }) => {
   const [params, setParams] = useState<Geometry2DParams>({
     type: 'rhombus',
@@ -1033,10 +1035,10 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({
           </button>
         </div>
 
-        {/* Floating Title Badge at Top Left */}
-        <div className="absolute top-4 left-4 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 py-2 text-xs font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>{currentShapeObj?.nameHi || params.type} (2D Geometry Diagram)</span>
+        {/* Floating Title Badge at Top Center */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none max-w-[90vw] truncate">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span className="truncate">{currentShapeObj?.nameHi || params.type} (2D Geometry Diagram)</span>
         </div>
 
         {/* Floating Quick Formulas Pill at Bottom Center */}
@@ -1097,12 +1099,44 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({
         {/* LEFT COLUMN / DOMINANT CANVAS */}
         <div className={`${projectorMode ? 'lg:w-8/12' : 'lg:w-7/12'} flex flex-col gap-4`}>
           {/* Shape Selector Bar */}
-          <div className="bg-slate-900/95 border border-slate-800 rounded-2xl p-3.5 shadow-xl">
-            <div className="flex items-center justify-between mb-2.5">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{language === 'hi' ? '2D आकृति का चयन करें' : 'Select 2D Geometry Shape'}</span>
-              </h2>
+          <div className="bg-slate-900/95 border border-slate-800 rounded-2xl p-3.5 shadow-xl space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+              {/* Quick module jumps: 2D, 3D, Dice, Cube Slicing */}
+              {onSelectTab && (
+                <div className="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800">
+                  <button
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all flex items-center gap-1"
+                  >
+                    <span>📐</span>
+                    <span>{language === 'hi' ? '2D आकृतियां' : '2D Shapes'}</span>
+                  </button>
+                  <button
+                    onClick={() => onSelectTab('shapes_3d')}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                    title={language === 'hi' ? '3D ठोस पर जाएं' : 'Switch to 3D Solids'}
+                  >
+                    <span>📦</span>
+                    <span>{language === 'hi' ? '3D ठोस' : '3D Solids'}</span>
+                  </button>
+                  <button
+                    onClick={() => onSelectTab('dice_reasoning')}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                    title={language === 'hi' ? 'पासा रीज़निंग पर जाएं' : 'Switch to Dice Reasoning'}
+                  >
+                    <span>🎲</span>
+                    <span>{language === 'hi' ? 'पासा (Dice)' : 'Dice'}</span>
+                  </button>
+                  <button
+                    onClick={() => onSelectTab('cutting_lab')}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                    title={language === 'hi' ? 'घन काटना लैब पर जाएं' : 'Switch to Cube Slicing'}
+                  >
+                    <span>🧊</span>
+                    <span>{language === 'hi' ? 'घन काटना' : 'Cube Slicing'}</span>
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center gap-2">
                 <button
                   id="btn-trigger-only-diagram-2d"
@@ -1113,9 +1147,6 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({
                   <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
                 </button>
-                <span className="text-[11px] text-slate-400 font-medium">
-                  {language === 'hi' ? '15+ आकृतियां • 100% ऑफ़लाइन' : '15+ Shapes • 100% Offline'}
-                </span>
               </div>
             </div>
 

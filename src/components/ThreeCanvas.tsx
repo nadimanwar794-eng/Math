@@ -282,19 +282,19 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       <div ref={mountRef} className="w-full h-full flex-1 cursor-grab active:cursor-grabbing" />
 
       {/* Floating Control Overlay */}
-      <div className="absolute top-2 left-2 flex flex-wrap items-center gap-1.5 pointer-events-auto z-10">
+      <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex flex-wrap items-center gap-1.5 sm:gap-2 pointer-events-auto z-30">
         {showToolbar ? (
           <>
             <button
               id="btn-toggle-rotation"
               onClick={() => setIsRotating(!isRotating)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium backdrop-blur-md border transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold backdrop-blur-md border transition-all flex items-center gap-1.5 shadow-lg ${
                 isRotating
-                  ? 'bg-indigo-600/90 border-indigo-400 text-white shadow-md'
-                  : 'bg-slate-900/80 border-slate-700 text-slate-300 hover:bg-slate-800'
+                  ? 'bg-indigo-600 border-indigo-400 text-white shadow-indigo-500/30'
+                  : 'bg-slate-900/90 border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-white'
               }`}
             >
-              <span className={`inline-block w-1.5 h-1.5 rounded-full ${isRotating ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+              <span className={`inline-block w-2 h-2 rounded-full ${isRotating ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
               <span>{isRotating ? (language === 'hi' ? 'रोकें' : 'Stop') : (language === 'hi' ? '3D घूर्णन' : 'Rotate')}</span>
             </button>
 
@@ -313,13 +313,13 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
                   }
                 }
               }}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-300 backdrop-blur-md transition-all"
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200 hover:text-white backdrop-blur-md transition-all shadow-lg"
             >
               {language === 'hi' ? 'रीसेट' : 'Reset'}
             </button>
 
             {/* Quick Zoom Buttons */}
-            <div className="flex items-center rounded-lg bg-slate-900/80 border border-slate-700 backdrop-blur-md overflow-hidden">
+            <div className="flex items-center rounded-xl bg-slate-900/90 border border-slate-700 backdrop-blur-md overflow-hidden shadow-lg">
               <button
                 title="Zoom In"
                 onClick={() => {
@@ -332,7 +332,7 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
                     cameraRef.current.lookAt(0, 0, 0);
                   }
                 }}
-                className="px-2 py-0.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 border-r border-slate-700 font-bold"
+                className="px-2.5 py-1.5 text-xs text-slate-200 hover:text-white hover:bg-slate-800 border-r border-slate-700 font-bold"
               >
                 +
               </button>
@@ -348,7 +348,7 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
                     cameraRef.current.lookAt(0, 0, 0);
                   }
                 }}
-                className="px-2 py-0.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 font-bold"
+                className="px-2.5 py-1.5 text-xs text-slate-200 hover:text-white hover:bg-slate-800 font-bold"
               >
                 -
               </button>
@@ -356,7 +356,7 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
 
             <button
               onClick={() => setShowToolbar(false)}
-              className="px-1.5 py-1 rounded-lg text-[10px] text-slate-500 hover:text-slate-300 bg-slate-900/60 border border-slate-800"
+              className="px-2 py-1.5 rounded-xl text-xs text-slate-400 hover:text-slate-200 bg-slate-900/80 border border-slate-800 shadow-md"
               title={language === 'hi' ? 'कंट्रोल छिपाएं' : 'Hide Controls'}
             >
               ✕
@@ -365,14 +365,15 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
         ) : (
           <button
             onClick={() => setShowToolbar(true)}
-            className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-400 hover:text-white bg-slate-900/80 border border-slate-700 backdrop-blur-md transition-all shadow-md"
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-900/90 border border-slate-700 backdrop-blur-md transition-all shadow-xl flex items-center gap-1.5"
           >
-            ⚙️ {language === 'hi' ? '3D कंट्रोल' : '3D Controls'}
+            <span>⚙️</span>
+            <span>{language === 'hi' ? '3D कंट्रोल दिखाएं' : '3D Controls'}</span>
           </button>
         )}
 
         {mode === 'shape' && (shapeParams?.explodedParts || 0) > 0 && (
-          <span className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 backdrop-blur-md animate-pulse">
+          <span className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 backdrop-blur-md animate-pulse shadow-md">
             ⚡ {language === 'hi' ? 'अलग भाग' : 'Exploded'}
           </span>
         )}

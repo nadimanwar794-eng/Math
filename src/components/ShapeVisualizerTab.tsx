@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShapeParams, ShapeType } from '../types';
+import { ActiveTab, ShapeParams, ShapeType } from '../types';
 import { calculateShapeMetrics } from '../utils/mathFormulas';
 import { ThreeCanvas } from './ThreeCanvas';
 import { ExportActionMenu } from './ExportActionMenu';
@@ -31,6 +31,7 @@ interface ShapeVisualizerTabProps {
   diagramOnlyMode?: boolean;
   onToggleDiagramOnly?: () => void;
   onCancelDiagramOnly?: () => void;
+  onSelectTab?: (tab: ActiveTab) => void;
 }
 
 export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
@@ -41,6 +42,7 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
   diagramOnlyMode = false,
   onToggleDiagramOnly,
   onCancelDiagramOnly,
+  onSelectTab,
 }) => {
   const [params, setParams] = useState<ShapeParams>({
     type: 'cylinder',
@@ -64,6 +66,8 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
   });
 
   const [viewLayout, setViewLayout] = useState<'split' | 'widescreen169'>(projectorMode ? 'widescreen169' : 'split');
+  const [shapeCategory, setShapeCategory] = useState<'all' | 'curved' | 'prisms' | 'pyramids'>('all');
+  const [activeSubView, setActiveSubView] = useState<'dimensions' | 'deconstruct' | 'formulas'>('dimensions');
 
   useEffect(() => {
     if (projectorMode) {
@@ -382,10 +386,10 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
           </button>
         </div>
 
-        {/* Floating Title Badge at Top Left */}
-        <div className="absolute top-4 left-4 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 py-2 text-xs font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none">
-          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse" />
-          <span>{currentShape?.nameHi || params.type} (3D Diagram)</span>
+        {/* Floating Title Badge at Top Center (Unobstructed from 3D controls at top-left) */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none max-w-[90vw] truncate">
+          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse shrink-0" />
+          <span className="truncate">{currentShape?.nameHi || params.type} (3D Diagram)</span>
         </div>
 
         {/* Minimal Floating Explode Slider at Bottom Center if deconstructible */}
@@ -411,7 +415,7 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
   return (
     <div className="space-y-4">
       {/* Top Header & Layout Mode Switcher */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 sm:p-3 backdrop-blur-md flex flex-wrap items-center justify-between gap-2 shadow-lg">
+      <div className="relative z-30 bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 sm:p-3 backdrop-blur-md flex flex-wrap items-center justify-between gap-2 shadow-lg">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-lg shrink-0">
             📐
@@ -482,42 +486,170 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
         </div>
       </div>
 
-      {/* Shape Selector Ribbon */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 sm:p-2.5 backdrop-blur-md">
-        <div className="flex items-center justify-between mb-1.5 px-1">
-          <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-            <Box className="w-3.5 h-3.5 text-indigo-400" />
-            <span>{language === 'hi' ? '3D ठोस आकृति चुनें' : 'Select 3D Shape'}</span>
-          </h3>
-          <span className="text-[10px] text-slate-400">
-            {language === 'hi' ? 'पार्ट्स अलग करके देखें' : 'Click to deconstruct'}
-          </span>
-        </div>
+      {/* Shape Category Filter & Selector Ribbon */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-3.5 backdrop-blur-md space-y-2.5 shadow-lg">
+        {/* Module Switcher & Filter Ribbon */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto py-0.5">
+            {/* Quick module jumps: 2D, 3D, Dice, Cube Slicing */}
+            {onSelectTab && (
+              <div className="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 mr-1 sm:mr-2">
+                <button
+                  onClick={() => onSelectTab('geometry_2d')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                  title={language === 'hi' ? '2D ज्यामिति पर जाएं' : 'Switch to 2D Geometry'}
+                >
+                  <span>📐</span>
+                  <span>{language === 'hi' ? '2D आकृतियां' : '2D Shapes'}</span>
+                </button>
+                <button
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all flex items-center gap-1"
+                >
+                  <span>📦</span>
+                  <span>{language === 'hi' ? '3D ठोस' : '3D Solids'}</span>
+                </button>
+                <button
+                  onClick={() => onSelectTab('dice_reasoning')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                  title={language === 'hi' ? 'पासा रीज़निंग पर जाएं' : 'Switch to Dice Reasoning'}
+                >
+                  <span>🎲</span>
+                  <span>{language === 'hi' ? 'पासा (Dice)' : 'Dice'}</span>
+                </button>
+                <button
+                  onClick={() => onSelectTab('cutting_lab')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                  title={language === 'hi' ? 'घन काटना लैब पर जाएं' : 'Switch to Cube Slicing'}
+                >
+                  <span>🧊</span>
+                  <span>{language === 'hi' ? 'घन काटना' : 'Cube Slicing'}</span>
+                </button>
+              </div>
+            )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-1.5 sm:gap-2">
-          {shapeList.map((shape) => {
-            const isSelected = params.type === shape.type;
-            return (
+            {/* 3D Category Filter Pills */}
+            {[
+              { id: 'all', labelHi: 'सभी (11)', labelEn: 'All (11)', icon: '🌟' },
+              { id: 'curved', labelHi: 'बेलन, गोला व पहिया', labelEn: 'Curved / Round', icon: '🛢️' },
+              { id: 'prisms', labelHi: 'घन, घनाभ व प्रिज्म', labelEn: 'Prisms & Cubes', icon: '📦' },
+              { id: 'pyramids', labelHi: 'शंकु, पिरामिड व छिन्नक', labelEn: 'Cones & Pyramids', icon: '🔺' },
+            ].map((cat) => (
               <button
-                key={shape.type}
-                id={`btn-shape-${shape.type}`}
-                onClick={() => handleSelectShape(shape)}
-                className={`flex flex-col items-center justify-center p-2 sm:p-2.5 rounded-xl border text-center transition-all ${
-                  isSelected
-                    ? 'bg-indigo-600/30 border-indigo-400 text-white shadow-lg shadow-indigo-500/20 scale-[1.03]'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700'
+                key={cat.id}
+                onClick={() => setShapeCategory(cat.id as any)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                  shapeCategory === cat.id
+                    ? 'bg-indigo-600/90 text-white shadow-md shadow-indigo-600/30'
+                    : 'bg-slate-950/70 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-slate-800/60'
                 }`}
               >
-                <span className="text-xl sm:text-2xl mb-0.5">{shape.icon}</span>
-                <span className="text-[11px] font-semibold tracking-tight truncate w-full">
-                  {language === 'hi' ? shape.nameHi.split(' ')[0] : shape.nameEn.split(' ')[0]}
-                </span>
-                <span className="text-[9px] text-slate-400 font-normal truncate w-full">
-                  {language === 'hi' ? shape.nameHi.split(' ')[1] || '' : shape.nameEn.split(' ')[1] || ''}
-                </span>
+                <span>{cat.icon}</span>
+                <span>{language === 'hi' ? cat.labelHi : cat.labelEn}</span>
               </button>
-            );
-          })}
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Quick Visual Styles Toggle */}
+            <button
+              onClick={() => setIsCompactSettingsOpen(!isCompactSettingsOpen)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+                isCompactSettingsOpen
+                  ? 'bg-indigo-950/80 text-indigo-300 border-indigo-500/60'
+                  : 'bg-slate-950 text-slate-400 hover:text-white border-slate-800'
+              }`}
+            >
+              <span>🎨</span>
+              <span>{language === 'hi' ? 'रंग व स्टाइल' : 'Style'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Compact Settings Popover / Expandable Bar */}
+        {isCompactSettingsOpen && (
+          <div className="p-3 bg-slate-950/90 rounded-xl border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <label className="text-slate-400 font-medium">{language === 'hi' ? 'रंग (Color):' : 'Color:'}</label>
+              <input
+                type="color"
+                value={params.color}
+                onChange={(e) => setParams({ ...params, color: e.target.value })}
+                className="w-7 h-7 rounded-md cursor-pointer border border-slate-700 bg-transparent"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 sm:gap-5">
+              <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={params.showLabels !== false}
+                  onChange={(e) => setParams({ ...params, showLabels: e.target.checked })}
+                  className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                />
+                {language === 'hi' ? '3D लेबल (Labels)' : '3D Labels'}
+              </label>
+
+              <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={params.wireframe}
+                  onChange={(e) => setParams({ ...params, wireframe: e.target.checked })}
+                  className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                />
+                {language === 'hi' ? 'जालीदार (Wireframe)' : 'Wireframe'}
+              </label>
+
+              <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={params.transparent}
+                  onChange={(e) => setParams({ ...params, transparent: e.target.checked })}
+                  className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                />
+                {language === 'hi' ? 'पारदर्शी (Transparent)' : 'Transparent'}
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Filtered Shape Selector Carousel */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-1.5 sm:gap-2">
+          {shapeList
+            .filter((shape) => {
+              if (shapeCategory === 'curved') {
+                return ['cylinder', 'hollow_cylinder', 'sphere', 'hemisphere', 'wheel'].includes(shape.type);
+              }
+              if (shapeCategory === 'prisms') {
+                return ['cube', 'cuboid', 'prism'].includes(shape.type);
+              }
+              if (shapeCategory === 'pyramids') {
+                return ['cone', 'frustum', 'pyramid'].includes(shape.type);
+              }
+              return true;
+            })
+            .map((shape) => {
+              const isSelected = params.type === shape.type;
+              return (
+                <button
+                  key={shape.type}
+                  id={`btn-shape-${shape.type}`}
+                  onClick={() => handleSelectShape(shape)}
+                  className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-indigo-600/30 border-indigo-400 text-white shadow-md shadow-indigo-500/20 scale-[1.03]'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700'
+                  }`}
+                >
+                  <span className="text-xl mb-0.5">{shape.icon}</span>
+                  <span className="text-[11px] font-semibold tracking-tight truncate w-full">
+                    {language === 'hi' ? shape.nameHi.split(' ')[0] : shape.nameEn.split(' ')[0]}
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-normal truncate w-full">
+                    {language === 'hi' ? shape.nameHi.split(' ')[1] || '' : shape.nameEn.split(' ')[1] || ''}
+                  </span>
+                </button>
+              );
+            })}
         </div>
       </div>
 
@@ -817,810 +949,704 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
           </div>
         </div>
       ) : (
-        /* STANDARD SPLIT VIEW (Left 3D Canvas, Right Detailed Controls & Math Engine) */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: 3D Interactive Canvas & Exploded Tools */}
-          <div className="lg:col-span-7 flex flex-col space-y-4">
-            <div className="h-[430px] sm:h-[500px]">
+        /* STANDARD VIEW WITH CLEAN TABBED SUBVIEWS (Dimensions | Deconstruct & 2D Net | Formulas & Steps) */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left Column (6 cols): 3D Interactive Canvas & Quick Info */}
+          <div className="lg:col-span-6 flex flex-col space-y-3">
+            <div className="h-[430px] sm:h-[500px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative bg-slate-950">
               <ThreeCanvas mode="shape" shapeParams={params} language={language} />
-            </div>
 
-            {/* 3D to 2D Step-by-Step Net Unfolding Studio */}
-            <div className="bg-slate-900/95 border border-indigo-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-md">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">📦➡️📄</span>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-indigo-300">
-                      {language === 'hi'
-                        ? '3D से 2D नेट अनफोल्डिंग लैब (Step-by-Step 3D to 2D Net)'
-                        : 'Step-by-Step 3D to 2D Net Unfolding Studio'}
-                    </h4>
-                    <p className="text-[11px] text-slate-400">
-                      {unfoldSteps[currentUnfoldStep]?.desc || (language === 'hi' ? 'ठोस से समतल 2D नेट' : 'Solid to 2D flat net')}
-                    </p>
-                  </div>
-                </div>
-                <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-950/80 px-2.5 py-1 rounded-lg border border-indigo-800/60">
-                  {language === 'hi' ? `चरण ${currentUnfoldStep}/${unfoldSteps.length - 1}` : `Step ${currentUnfoldStep}/${unfoldSteps.length - 1}`}
-                </span>
-              </div>
-
-              {/* Step Pills */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5 my-3">
-                {unfoldSteps.map((s) => (
-                  <button
-                    key={s.step}
-                    onClick={() => {
-                      setIsAutoUnfolding(false);
-                      setIsAutoExploding(false);
-                      setParams({
-                        ...params,
-                        unfoldStep: s.step,
-                        unfoldProgress: s.step / (unfoldSteps.length - 1),
-                        explodedParts: 0,
-                      });
-                    }}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-medium border text-center transition-all truncate ${
-                      currentUnfoldStep === s.step
-                        ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-600/30'
-                        : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700 hover:text-white'
-                    }`}
-                    title={s.label}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Smooth Progress Slider */}
-              <div className="space-y-2 pt-1">
-                <div className="flex justify-between text-xs text-slate-400">
-                  <span>{language === 'hi' ? '3D ठोस (0%)' : '3D Solid (0%)'}</span>
-                  <span className="text-indigo-300 font-mono font-bold">
-                    {Math.round((params.unfoldProgress || (currentUnfoldStep / (unfoldSteps.length - 1))) * 100)}% {language === 'hi' ? 'खुला हुआ' : 'Unfolded'}
-                  </span>
-                  <span>{language === 'hi' ? 'समतल 2D नेट (100%)' : 'Flat 2D Net (100%)'}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={params.unfoldProgress !== undefined ? params.unfoldProgress : currentUnfoldStep / (unfoldSteps.length - 1)}
-                  onChange={(e) => {
-                    setIsAutoUnfolding(false);
-                    setIsAutoExploding(false);
-                    const val = parseFloat(e.target.value);
-                    const stepIdx = Math.round(val * (unfoldSteps.length - 1));
-                    setParams({
-                      ...params,
-                      unfoldProgress: val,
-                      unfoldStep: stepIdx,
-                      explodedParts: 0,
-                    });
-                  }}
-                  className="w-full accent-indigo-400 bg-slate-800 h-2 rounded-lg cursor-pointer"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 text-xs border-t border-slate-800/80 mt-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setIsAutoUnfolding(false);
-                      const prevS = Math.max(0, currentUnfoldStep - 1);
-                      setParams({
-                        ...params,
-                        unfoldStep: prevS,
-                        unfoldProgress: prevS / (unfoldSteps.length - 1),
-                        explodedParts: 0,
-                      });
-                    }}
-                    disabled={currentUnfoldStep === 0}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 border border-slate-700 font-medium transition-all"
-                  >
-                    {language === 'hi' ? '◀ पिछला फलक' : '◀ Prev Face'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsAutoUnfolding(false);
-                      const nextS = Math.min(unfoldSteps.length - 1, currentUnfoldStep + 1);
-                      setParams({
-                        ...params,
-                        unfoldStep: nextS,
-                        unfoldProgress: nextS / (unfoldSteps.length - 1),
-                        explodedParts: 0,
-                      });
-                    }}
-                    disabled={currentUnfoldStep === unfoldSteps.length - 1}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white border border-indigo-400 font-medium transition-all"
-                  >
-                    {language === 'hi' ? 'अगला फलक खोलें ▶' : 'Next Face ▶'}
-                  </button>
-                  <button
-                    onClick={() => setIsAutoUnfolding(!isAutoUnfolding)}
-                    className={`px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition-all ${
-                      isAutoUnfolding
-                        ? 'bg-emerald-600 text-white border-emerald-400 animate-pulse'
-                        : 'bg-slate-800 text-indigo-300 hover:text-white border-slate-700'
-                    }`}
-                  >
-                    <Play className="w-3.5 h-3.5" />
-                    {isAutoUnfolding
-                      ? (language === 'hi' ? 'एनीमेशन रोकें' : 'Stop Animation')
-                      : (language === 'hi' ? 'ऑटो 3D ➔ 2D लूप' : 'Auto 3D ➔ 2D Loop')}
-                  </button>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setIsAutoUnfolding(false);
-                    setParams({
-                      ...params,
-                      unfoldStep: 0,
-                      unfoldProgress: 0,
-                      explodedParts: 0,
-                      unrollNet: false,
-                    });
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium transition-all"
-                >
-                  {language === 'hi' ? '🔄 3D ठोस बंद करें' : '🔄 Close to 3D'}
-                </button>
+              {/* Floating Shape Title Badge */}
+              <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700/80 text-xs font-bold text-white flex items-center gap-2 shadow-lg pointer-events-none">
+                <span>{currentShapeObj.icon}</span>
+                <span>{language === 'hi' ? currentShapeObj.nameHi : currentShapeObj.nameEn}</span>
               </div>
             </div>
 
-            {/* Exploded Parts Controller Card */}
-            <div className="bg-slate-900/90 border border-amber-900/40 rounded-2xl p-4 shadow-xl backdrop-blur-md">
-              <div className="flex items-center justify-between mb-2.5">
-                <h4 className="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-2">
-                  <span>⚡</span>
-                  {language === 'hi'
-                    ? '3D घटक पृथक्करण (Separate & Deconstruct 3D Parts)'
-                    : 'Exploded View & Component Separation'}
-                </h4>
-                <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/60">
-                  {Math.round((params.explodedParts || 0) * 100)}% {language === 'hi' ? 'अलग' : 'Separated'}
-                </span>
+            {/* Quick Metrics Bar directly beneath 3D Canvas */}
+            <div className="grid grid-cols-3 gap-2 bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
+              <div className="bg-slate-950/80 p-2 rounded-lg border border-indigo-900/30 text-center">
+                <div className="text-[10px] text-indigo-300 font-medium">{language === 'hi' ? 'आयतन (Vol)' : 'Volume'}</div>
+                <div className="text-xs sm:text-sm font-mono font-bold text-white mt-0.5 truncate">
+                  {metrics.volume.toFixed(1)} <span className="text-[9px] text-slate-400 font-normal">cm³</span>
+                </div>
               </div>
+              <div className="bg-slate-950/80 p-2 rounded-lg border border-emerald-900/30 text-center">
+                <div className="text-[10px] text-emerald-300 font-medium">{language === 'hi' ? 'वक्र पृष्ठ (CSA)' : 'CSA'}</div>
+                <div className="text-xs sm:text-sm font-mono font-bold text-white mt-0.5 truncate">
+                  {metrics.curvedSurfaceArea.toFixed(1)} <span className="text-[9px] text-slate-400 font-normal">cm²</span>
+                </div>
+              </div>
+              <div className="bg-slate-950/80 p-2 rounded-lg border border-amber-900/30 text-center">
+                <div className="text-[10px] text-amber-300 font-medium">{language === 'hi' ? 'कुल पृष्ठ (TSA)' : 'TSA'}</div>
+                <div className="text-xs sm:text-sm font-mono font-bold text-white mt-0.5 truncate">
+                  {metrics.totalSurfaceArea.toFixed(1)} <span className="text-[9px] text-slate-400 font-normal">cm²</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
+          {/* Right Column (6 cols): Tabbed Professional Controls */}
+          <div className="lg:col-span-6 flex flex-col space-y-3">
+            {/* Sub-View Navigation Tabs */}
+            <div className="flex bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-inner">
+              <button
+                onClick={() => setActiveSubView('dimensions')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  activeSubView === 'dimensions'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>{language === 'hi' ? '1. माप व परिमाप' : '1. Dimensions & Stats'}</span>
+              </button>
+
+              <button
+                onClick={() => setActiveSubView('deconstruct')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  activeSubView === 'deconstruct'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <Box className="w-3.5 h-3.5" />
+                <span>{language === 'hi' ? '2. डीकंस्ट्रक्ट व 2D नेट' : '2. Deconstruct & Net'}</span>
+              </button>
+
+              <button
+                onClick={() => setActiveSubView('formulas')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  activeSubView === 'formulas'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>{language === 'hi' ? '3. सूत्र व स्टेप्स' : '3. Formulas & Steps'}</span>
+              </button>
+            </div>
+
+            {/* TAB 1: DIMENSIONS & STATS */}
+            {activeSubView === 'dimensions' && (
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={params.explodedParts || 0}
-                    onChange={(e) => {
-                      setIsAutoExploding(false);
-                      setIsAutoUnfolding(false);
-                      setParams({ ...params, explodedParts: parseFloat(e.target.value) });
-                    }}
-                    className="w-full accent-amber-400 bg-slate-800 h-2.5 rounded-lg cursor-pointer"
-                  />
+                {/* Dimension Sliders & Number Inputs */}
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md">
+                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-indigo-400" />
+                      {language === 'hi' ? 'माप दर्ज करें (Input Dimensions)' : 'Set Dimensions'}
+                    </span>
+                    <span className="text-[11px] font-normal px-2 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 font-mono">
+                      {params.type.toUpperCase()}
+                    </span>
+                  </h4>
+
+                  <div className="space-y-3.5">
+                    {/* Radius Slider (Cylinder, Cone, Sphere, Hemisphere, Wheel, Frustum) */}
+                    {(params.type === 'cylinder' ||
+                      params.type === 'cone' ||
+                      params.type === 'sphere' ||
+                      params.type === 'hemisphere' ||
+                      params.type === 'wheel' ||
+                      params.type === 'frustum') && (
+                      <div>
+                        <div className="flex justify-between text-xs font-medium mb-1">
+                          <span className="text-slate-300">
+                            {params.type === 'frustum'
+                              ? language === 'hi'
+                                ? 'निचली त्रिज्या (Bottom Radius r₁)'
+                                : 'Bottom Radius (r₁)'
+                              : language === 'hi'
+                              ? 'त्रिज्या (Radius r)'
+                              : 'Radius (r)'}
+                          </span>
+                          <span className="text-indigo-300 font-mono font-bold">{params.radius} cm</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="10"
+                            step="0.5"
+                            value={params.radius}
+                            onChange={(e) => setParams({ ...params, radius: parseFloat(e.target.value) })}
+                            className="flex-1 accent-indigo-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                          />
+                          <input
+                            type="number"
+                            min="0.1"
+                            step="0.5"
+                            value={params.radius}
+                            onChange={(e) => setParams({ ...params, radius: Math.max(0.1, parseFloat(e.target.value) || 1) })}
+                            className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Top Radius for Frustum */}
+                    {params.type === 'frustum' && (
+                      <div>
+                        <div className="flex justify-between text-xs font-medium mb-1">
+                          <span className="text-slate-300">
+                            {language === 'hi' ? 'ऊपरी त्रिज्या (Top Radius r₂)' : 'Top Radius (r₂)'}
+                          </span>
+                          <span className="text-indigo-300 font-mono font-bold">{params.radius2 || 1.5} cm</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="8"
+                            step="0.5"
+                            value={params.radius2 || 1.5}
+                            onChange={(e) => setParams({ ...params, radius2: parseFloat(e.target.value) })}
+                            className="flex-1 accent-indigo-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                          />
+                          <input
+                            type="number"
+                            min="0.1"
+                            step="0.5"
+                            value={params.radius2 || 1.5}
+                            onChange={(e) => setParams({ ...params, radius2: Math.max(0.1, parseFloat(e.target.value) || 1) })}
+                            className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Height Slider */}
+                    {params.type !== 'sphere' && params.type !== 'hemisphere' && params.type !== 'cube' && (
+                      <div>
+                        <div className="flex justify-between text-xs font-medium mb-1">
+                          <span className="text-slate-300">
+                            {params.type === 'wheel'
+                              ? language === 'hi'
+                                ? 'चौड़ाई / लंबाई (Width w)'
+                                : 'Roller Width (w)'
+                              : language === 'hi'
+                              ? 'ऊंचाई (Height h)'
+                              : 'Height (h)'}
+                          </span>
+                          <span className="text-indigo-300 font-mono font-bold">{params.height} cm</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="12"
+                            step="0.5"
+                            value={params.height}
+                            onChange={(e) => setParams({ ...params, height: parseFloat(e.target.value) })}
+                            className="flex-1 accent-indigo-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                          />
+                          <input
+                            type="number"
+                            min="0.1"
+                            step="0.5"
+                            value={params.height}
+                            onChange={(e) => setParams({ ...params, height: Math.max(0.1, parseFloat(e.target.value) || 1) })}
+                            className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Length for Cube, Cuboid, Prism, Pyramid */}
+                    {(params.type === 'cube' ||
+                      params.type === 'cuboid' ||
+                      params.type === 'prism' ||
+                      params.type === 'pyramid') && (
+                      <div>
+                        <div className="flex justify-between text-xs font-medium mb-1">
+                          <span className="text-slate-300">
+                            {params.type === 'cube' || params.type === 'prism' || params.type === 'pyramid'
+                              ? language === 'hi'
+                                ? 'भुजा (Side / Base a)'
+                                : 'Side / Base (a)'
+                              : language === 'hi'
+                              ? 'लंबाई (Length l)'
+                              : 'Length (l)'}
+                          </span>
+                          <span className="text-indigo-300 font-mono font-bold">{params.length} cm</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="10"
+                            step="0.5"
+                            value={params.length}
+                            onChange={(e) => setParams({ ...params, length: parseFloat(e.target.value) })}
+                            className="flex-1 accent-indigo-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                          />
+                          <input
+                            type="number"
+                            min="0.1"
+                            step="0.5"
+                            value={params.length}
+                            onChange={(e) => setParams({ ...params, length: Math.max(0.1, parseFloat(e.target.value) || 1) })}
+                            className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Width for Cuboid */}
+                    {params.type === 'cuboid' && (
+                      <div>
+                        <div className="flex justify-between text-xs font-medium mb-1">
+                          <span className="text-slate-300">{language === 'hi' ? 'चौड़ाई (Width b)' : 'Width (b)'}</span>
+                          <span className="text-indigo-300 font-mono font-bold">{params.width} cm</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="10"
+                            step="0.5"
+                            value={params.width}
+                            onChange={(e) => setParams({ ...params, width: parseFloat(e.target.value) })}
+                            className="flex-1 accent-indigo-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                          />
+                          <input
+                            type="number"
+                            min="0.1"
+                            step="0.5"
+                            value={params.width}
+                            onChange={(e) => setParams({ ...params, width: Math.max(0.1, parseFloat(e.target.value) || 1) })}
+                            className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setIsAutoExploding(false);
-                        setIsAutoUnfolding(false);
-                        setParams({ ...params, explodedParts: 0.85, unfoldStep: 0, unfoldProgress: 0 });
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-medium transition-all"
-                    >
-                      {language === 'hi' ? '💥 सारे पार्ट्स अलग करें' : '💥 Separate All Parts'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsAutoExploding(false);
-                        setParams({ ...params, explodedParts: 0 });
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium transition-all"
-                    >
-                      {language === 'hi' ? '🔄 वापस जोड़ें (Assemble)' : '🔄 Assemble Solid'}
-                    </button>
-                    <button
-                      onClick={() => setIsAutoExploding(!isAutoExploding)}
-                      className={`px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition-all ${
-                        isAutoExploding
-                          ? 'bg-emerald-600 text-white border-emerald-400 animate-pulse'
-                          : 'bg-slate-800 text-slate-300 hover:text-white border-slate-700'
-                      }`}
-                    >
-                      <Play className="w-3.5 h-3.5" />
-                      {isAutoExploding ? (language === 'hi' ? 'एनीमेशन रोकें' : 'Stop Animation') : (language === 'hi' ? 'ऑटो डीकंस्ट्रक्ट लूप' : 'Auto Loop')}
-                    </button>
+                {/* Calculation Cards Grid */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="bg-slate-900/90 border border-indigo-900/50 rounded-xl p-3">
+                    <div className="text-[11px] font-medium text-indigo-300">
+                      {language === 'hi' ? 'आयतन (Volume V)' : 'Volume (V)'}
+                    </div>
+                    <div className="text-lg font-mono font-bold text-white mt-1">
+                      {metrics.volume.toFixed(2)}{' '}
+                      <span className="text-xs font-normal text-slate-400">cm³</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {(params.type === 'cylinder' && 'π × r² × h') ||
+                        (params.type === 'cone' && '(1/3)π × r² × h') ||
+                        (params.type === 'cube' && 'a³') ||
+                        (params.type === 'cuboid' && 'l × b × h') ||
+                        (params.type === 'sphere' && '(4/3)π × r³') ||
+                        (params.type === 'hemisphere' && '(2/3)π × r³') ||
+                        '(1/3)πh(r1²+r2²+r1r2)'}
+                    </div>
                   </div>
 
-                  {params.type === 'cylinder' && (
-                    <button
-                      onClick={() => setParams({ ...params, unrollNet: !params.unrollNet })}
-                      className={`px-3 py-1.5 rounded-lg font-medium border transition-all ${
-                        params.unrollNet
-                          ? 'bg-cyan-600 text-white border-cyan-400'
-                          : 'bg-slate-800 text-cyan-300 border-slate-700 hover:bg-slate-700'
-                      }`}
-                    >
-                      {params.unrollNet
+                  <div className="bg-slate-900/90 border border-emerald-900/50 rounded-xl p-3">
+                    <div className="text-[11px] font-medium text-emerald-300">
+                      {language === 'hi' ? 'वक्र पृष्ठ (CSA / LSA)' : 'Curved Area (CSA)'}
+                    </div>
+                    <div className="text-lg font-mono font-bold text-white mt-1">
+                      {metrics.curvedSurfaceArea.toFixed(2)}{' '}
+                      <span className="text-xs font-normal text-slate-400">cm²</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {(params.type === 'cylinder' && '2 × π × r × h') ||
+                        (params.type === 'cone' && 'π × r × l') ||
+                        (params.type === 'cube' && '4 × a²') ||
+                        (params.type === 'cuboid' && '2h(l + b)') ||
+                        '4 × π × r²'}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/90 border border-amber-900/50 rounded-xl p-3">
+                    <div className="text-[11px] font-medium text-amber-300">
+                      {language === 'hi' ? 'संपूर्ण पृष्ठ (TSA)' : 'Total Area (TSA)'}
+                    </div>
+                    <div className="text-lg font-mono font-bold text-white mt-1">
+                      {metrics.totalSurfaceArea.toFixed(2)}{' '}
+                      <span className="text-xs font-normal text-slate-400">cm²</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {(params.type === 'cylinder' && '2πr(r + h)') ||
+                        (params.type === 'cone' && 'πr(l + r)') ||
+                        (params.type === 'cube' && '6 × a²') ||
+                        (params.type === 'cuboid' && '2(lb + bh + hl)') ||
+                        (params.type === 'hemisphere' && '3 × π × r²') ||
+                        '4 × π × r²'}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/90 border border-purple-900/50 rounded-xl p-3">
+                    <div className="text-[11px] font-medium text-purple-300">
+                      {metrics.slantHeight
                         ? language === 'hi'
-                          ? 'खोखला बेलन (Tube)'
-                          : 'Tube View'
+                          ? 'तिर्यक ऊंचाई (Slant Height l)'
+                          : 'Slant Height (l)'
+                        : metrics.spaceDiagonal
+                        ? language === 'hi'
+                          ? 'विकर्ण (Space Diagonal)'
+                          : 'Space Diagonal (d)'
                         : language === 'hi'
-                        ? 'खुला आयताकार वक्र पृष्ठ (2πr×h)'
-                        : 'Unroll 2D Sheet'}
+                        ? 'व्यास (Diameter)'
+                        : 'Diameter (d)'}
+                    </div>
+                    <div className="text-lg font-mono font-bold text-white mt-1">
+                      {(metrics.slantHeight || metrics.spaceDiagonal || params.radius * 2).toFixed(2)}{' '}
+                      <span className="text-xs font-normal text-slate-400">cm</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {metrics.slantHeight ? '√(r² + h²)' : metrics.spaceDiagonal ? '√(l² + b² + h²)' : '2 × r'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: DECONSTRUCT & 2D NET UNFOLDING */}
+            {activeSubView === 'deconstruct' && (
+              <div className="space-y-3">
+                {/* 3D to 2D Step-by-Step Net Unfolding Studio */}
+                <div className="bg-slate-900/95 border border-indigo-500/40 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📦➡️📄</span>
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-bold text-indigo-300">
+                          {language === 'hi'
+                            ? '3D से 2D नेट अनफोल्डिंग लैब'
+                            : 'Step-by-Step 3D to 2D Net Unfolding'}
+                        </h4>
+                        <p className="text-[11px] text-slate-400">
+                          {unfoldSteps[currentUnfoldStep]?.desc || (language === 'hi' ? 'ठोस से समतल 2D नेट' : 'Solid to 2D flat net')}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-950/80 px-2 py-0.5 rounded-lg border border-indigo-800/60">
+                      {language === 'hi' ? `चरण ${currentUnfoldStep}/${unfoldSteps.length - 1}` : `Step ${currentUnfoldStep}/${unfoldSteps.length - 1}`}
+                    </span>
+                  </div>
+
+                  {/* Step Pills */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5 my-3">
+                    {unfoldSteps.map((s) => (
+                      <button
+                        key={s.step}
+                        onClick={() => {
+                          setIsAutoUnfolding(false);
+                          setIsAutoExploding(false);
+                          setParams({
+                            ...params,
+                            unfoldStep: s.step,
+                            unfoldProgress: s.step / (unfoldSteps.length - 1),
+                            explodedParts: 0,
+                          });
+                        }}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-medium border text-center transition-all truncate ${
+                          currentUnfoldStep === s.step
+                            ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-600/30'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700 hover:text-white'
+                        }`}
+                        title={s.label}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Smooth Progress Slider */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>{language === 'hi' ? '3D ठोस (0%)' : '3D Solid (0%)'}</span>
+                      <span className="text-indigo-300 font-mono font-bold">
+                        {Math.round((params.unfoldProgress || (currentUnfoldStep / (unfoldSteps.length - 1))) * 100)}% {language === 'hi' ? 'खुला' : 'Unfolded'}
+                      </span>
+                      <span>{language === 'hi' ? '2D नेट (100%)' : '2D Net (100%)'}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={params.unfoldProgress !== undefined ? params.unfoldProgress : currentUnfoldStep / (unfoldSteps.length - 1)}
+                      onChange={(e) => {
+                        setIsAutoUnfolding(false);
+                        setIsAutoExploding(false);
+                        const val = parseFloat(e.target.value);
+                        const stepIdx = Math.round(val * (unfoldSteps.length - 1));
+                        setParams({
+                          ...params,
+                          unfoldProgress: val,
+                          unfoldStep: stepIdx,
+                          explodedParts: 0,
+                        });
+                      }}
+                      className="w-full accent-indigo-400 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 text-xs border-t border-slate-800/80 mt-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setIsAutoUnfolding(false);
+                          const prevS = Math.max(0, currentUnfoldStep - 1);
+                          setParams({
+                            ...params,
+                            unfoldStep: prevS,
+                            unfoldProgress: prevS / (unfoldSteps.length - 1),
+                            explodedParts: 0,
+                          });
+                        }}
+                        disabled={currentUnfoldStep === 0}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 border border-slate-700 font-medium transition-all"
+                      >
+                        {language === 'hi' ? '◀ पिछला' : '◀ Prev'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsAutoUnfolding(false);
+                          const nextS = Math.min(unfoldSteps.length - 1, currentUnfoldStep + 1);
+                          setParams({
+                            ...params,
+                            unfoldStep: nextS,
+                            unfoldProgress: nextS / (unfoldSteps.length - 1),
+                            explodedParts: 0,
+                          });
+                        }}
+                        disabled={currentUnfoldStep === unfoldSteps.length - 1}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white border border-indigo-400 font-medium transition-all"
+                      >
+                        {language === 'hi' ? 'अगला ▶' : 'Next ▶'}
+                      </button>
+                      <button
+                        onClick={() => setIsAutoUnfolding(!isAutoUnfolding)}
+                        className={`px-2.5 py-1 rounded-lg font-medium border flex items-center gap-1 transition-all ${
+                          isAutoUnfolding
+                            ? 'bg-emerald-600 text-white border-emerald-400 animate-pulse'
+                            : 'bg-slate-800 text-indigo-300 hover:text-white border-slate-700'
+                        }`}
+                      >
+                        <Play className="w-3 h-3" />
+                        {isAutoUnfolding ? (language === 'hi' ? 'रोकें' : 'Stop') : (language === 'hi' ? 'ऑटो लूप' : 'Loop')}
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setIsAutoUnfolding(false);
+                        setParams({
+                          ...params,
+                          unfoldStep: 0,
+                          unfoldProgress: 0,
+                          explodedParts: 0,
+                          unrollNet: false,
+                        });
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium transition-all"
+                    >
+                      {language === 'hi' ? '🔄 रीसेट' : '🔄 Reset'}
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Canvas View Toggles */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <label className="text-slate-400">{language === 'hi' ? 'रंग (Color):' : 'Color:'}</label>
-                <input
-                  type="color"
-                  value={params.color}
-                  onChange={(e) => setParams({ ...params, color: e.target.value })}
-                  className="w-7 h-7 rounded-md cursor-pointer border border-slate-700 bg-transparent"
-                />
-              </div>
+                {/* Exploded Parts Controller Card */}
+                <div className="bg-slate-900/90 border border-amber-900/40 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-2">
+                      <span>⚡</span>
+                      {language === 'hi'
+                        ? '3D घटक पृथक्करण (Exploded View)'
+                        : 'Component Separation & Exploded View'}
+                    </h4>
+                    <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/60">
+                      {Math.round((params.explodedParts || 0) * 100)}% {language === 'hi' ? 'अलग' : 'Separated'}
+                    </span>
+                  </div>
 
-              <div className="flex items-center gap-3 sm:gap-4">
-                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
-                  <input
-                    type="checkbox"
-                    checked={params.showLabels !== false}
-                    onChange={(e) => setParams({ ...params, showLabels: e.target.checked })}
-                    className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  {language === 'hi' ? '3D लेबल (Labels)' : '3D Labels'}
-                </label>
+                  <div className="space-y-2.5">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={params.explodedParts || 0}
+                      onChange={(e) => {
+                        setIsAutoExploding(false);
+                        setParams({ ...params, explodedParts: parseFloat(e.target.value) });
+                      }}
+                      className="w-full accent-amber-400 bg-slate-800 h-2.5 rounded-lg cursor-pointer"
+                    />
 
-                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
-                  <input
-                    type="checkbox"
-                    checked={params.wireframe}
-                    onChange={(e) => setParams({ ...params, wireframe: e.target.checked })}
-                    className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  {language === 'hi' ? 'जालीदार (Wireframe)' : 'Wireframe'}
-                </label>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => {
+                            setIsAutoExploding(false);
+                            setIsAutoUnfolding(false);
+                            setParams({ ...params, explodedParts: 0.85, unfoldStep: 0, unfoldProgress: 0 });
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-medium transition-all"
+                        >
+                          {language === 'hi' ? '💥 अलग करें' : '💥 Separate'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsAutoExploding(false);
+                            setParams({ ...params, explodedParts: 0 });
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium transition-all"
+                        >
+                          {language === 'hi' ? '🔄 जोड़ें' : '🔄 Assemble'}
+                        </button>
+                        <button
+                          onClick={() => setIsAutoExploding(!isAutoExploding)}
+                          className={`px-2.5 py-1 rounded-lg font-medium border flex items-center gap-1 transition-all ${
+                            isAutoExploding
+                              ? 'bg-emerald-600 text-white border-emerald-400 animate-pulse'
+                              : 'bg-slate-800 text-slate-300 hover:text-white border-slate-700'
+                          }`}
+                        >
+                          <Play className="w-3 h-3" />
+                          {isAutoExploding ? (language === 'hi' ? 'रोकें' : 'Stop') : (language === 'hi' ? 'ऑटो लूप' : 'Loop')}
+                        </button>
+                      </div>
 
-                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
-                  <input
-                    type="checkbox"
-                    checked={params.transparent}
-                    onChange={(e) => setParams({ ...params, transparent: e.target.checked })}
-                    className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  {language === 'hi' ? 'पारदर्शी (Transparent)' : 'Transparent'}
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Parameters Input & Step-by-Step Calculation Engine */}
-          <div className="lg:col-span-5 flex flex-col space-y-4">
-            {/* Dimension Inputs Card */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5">
-              <h4 className="text-sm font-semibold text-white mb-3 flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-indigo-400" />
-                  {language === 'hi' ? 'माप दर्ज करें (Input Dimensions)' : 'Set Dimensions'}
-                </span>
-                <span className="text-[11px] font-normal px-2 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60">
-                  {params.type.toUpperCase()}
-                </span>
-              </h4>
-
-              <div className="space-y-3.5">
-                {/* Radius Input for Cylinder, Hollow Cylinder, Wheel, Cone, Sphere, Hemisphere, Frustum */}
-                {(params.type === 'cylinder' ||
-                  params.type === 'hollow_cylinder' ||
-                  params.type === 'wheel' ||
-                  params.type === 'cone' ||
-                  params.type === 'sphere' ||
-                  params.type === 'hemisphere' ||
-                  params.type === 'frustum') && (
-                  <div>
-                    <div className="flex justify-between text-xs font-medium mb-1">
-                      <span className="text-slate-300">
-                        {params.type === 'hollow_cylinder'
-                          ? language === 'hi'
-                            ? 'आंतरिक त्रिज्या (Inner r):'
-                            : 'Inner Radius (r):'
-                          : language === 'hi'
-                          ? 'त्रिज्या (Radius r):'
-                          : 'Radius (r):'}
-                      </span>
-                      <span className="text-indigo-400 font-mono font-bold">{params.radius} cm</span>
+                      {params.type === 'cylinder' && (
+                        <button
+                          onClick={() => setParams({ ...params, unrollNet: !params.unrollNet })}
+                          className={`px-2.5 py-1 rounded-lg font-medium border transition-all ${
+                            params.unrollNet
+                              ? 'bg-cyan-600 text-white border-cyan-400'
+                              : 'bg-slate-800 text-cyan-300 border-slate-700 hover:bg-slate-700'
+                          }`}
+                        >
+                          {params.unrollNet
+                            ? language === 'hi'
+                              ? 'खोखला बेलन (Tube)'
+                              : 'Tube View'
+                            : language === 'hi'
+                            ? 'खुला वक्र पृष्ठ (2πr×h)'
+                            : 'Unroll 2D Sheet'}
+                        </button>
+                      )}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="0.5"
-                        max="100"
-                        step="0.5"
-                        value={params.radius}
-                        onChange={(e) => setParams({ ...params, radius: parseFloat(e.target.value) })}
-                        className="w-full accent-indigo-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-                      />
-                      <input
-                        type="number"
-                        min="0.1"
-                        step="0.5"
-                        value={params.radius}
-                        onChange={(e) => setParams({ ...params, radius: Math.max(0.1, parseFloat(e.target.value) || 1) })}
-                        className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
-                      />
+                  </div>
+                </div>
+
+                {/* Special Deconstructed Parts Breakdown for Cylinder/Wheel */}
+                {params.type === 'cylinder' && (
+                  <div className="bg-slate-900/90 border border-indigo-900/60 rounded-2xl p-3.5 backdrop-blur-md">
+                    <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                      <span>🛢️</span>
+                      {language === 'hi' ? 'बेलन के घटक (Parts Analysis)' : 'Cylinder Parts Analysis'}
+                    </h4>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="p-2 rounded-lg bg-slate-950/70 border border-emerald-500/30">
+                        <div className="text-[10px] text-emerald-400 font-bold">{language === 'hi' ? 'शीर्ष ढक्कन (Top)' : 'Top Base'}</div>
+                        <div className="font-mono text-emerald-300 text-xs font-bold mt-0.5">πr² = {topBaseArea.toFixed(1)} cm²</div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-slate-950/70 border border-indigo-500/30">
+                        <div className="text-[10px] text-indigo-400 font-bold">{language === 'hi' ? 'वक्र पृष्ठ (CSA)' : 'Curved'}</div>
+                        <div className="font-mono text-indigo-300 text-xs font-bold mt-0.5">2πrh = {csaArea.toFixed(1)} cm²</div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-slate-950/70 border border-cyan-500/30">
+                        <div className="text-[10px] text-cyan-400 font-bold">{language === 'hi' ? 'निचला तला (Base)' : 'Bottom'}</div>
+                        <div className="font-mono text-cyan-300 text-xs font-bold mt-0.5">πr² = {botBaseArea.toFixed(1)} cm²</div>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Hollow Cylinder Outer Radius */}
-                {params.type === 'hollow_cylinder' && (
-                  <div>
-                    <div className="flex justify-between text-xs font-medium mb-1">
-                      <span className="text-slate-300">
-                        {language === 'hi' ? 'बाहरी त्रिज्या (Outer R):' : 'Outer Radius (R):'}
-                      </span>
-                      <span className="text-cyan-400 font-mono font-bold">{params.radiusOuter || 5} cm</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="1"
-                        max="100"
-                        step="0.5"
-                        value={params.radiusOuter || 5}
-                        onChange={(e) => setParams({ ...params, radiusOuter: parseFloat(e.target.value) })}
-                        className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-                      />
-                      <input
-                        type="number"
-                        min="0.1"
-                        step="0.5"
-                        value={params.radiusOuter || 5}
-                        onChange={(e) =>
-                          setParams({ ...params, radiusOuter: Math.max(0.1, parseFloat(e.target.value) || 1) })
-                        }
-                        className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Frustum Top Radius */}
-                {params.type === 'frustum' && (
-                  <div>
-                    <div className="flex justify-between text-xs font-medium mb-1">
-                      <span className="text-slate-300">
-                        {language === 'hi' ? 'ऊपरी त्रिज्या (Top Radius r2):' : 'Top Radius (r2):'}
-                      </span>
-                      <span className="text-orange-400 font-mono font-bold">{params.radiusTop} cm</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="0.5"
-                        max="50"
-                        step="0.5"
-                        value={params.radiusTop}
-                        onChange={(e) => setParams({ ...params, radiusTop: parseFloat(e.target.value) })}
-                        className="w-full accent-orange-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-                      />
-                      <input
-                        type="number"
-                        min="0.1"
-                        step="0.5"
-                        value={params.radiusTop}
-                        onChange={(e) =>
-                          setParams({ ...params, radiusTop: Math.max(0.1, parseFloat(e.target.value) || 1) })
-                        }
-                        className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Height Input for Cylinder, Hollow Cylinder, Cone, Cuboid, Frustum, Prism, Pyramid */}
-                {(params.type === 'cylinder' ||
-                  params.type === 'hollow_cylinder' ||
-                  params.type === 'cone' ||
-                  params.type === 'cuboid' ||
-                  params.type === 'frustum' ||
-                  params.type === 'prism' ||
-                  params.type === 'pyramid') && (
-                  <div>
-                    <div className="flex justify-between text-xs font-medium mb-1">
-                      <span className="text-slate-300">
-                        {language === 'hi' ? 'ऊंचाई (Height h):' : 'Height (h):'}
-                      </span>
-                      <span className="text-indigo-400 font-mono font-bold">{params.height} cm</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="1"
-                        max="100"
-                        step="0.5"
-                        value={params.height}
-                        onChange={(e) => setParams({ ...params, height: parseFloat(e.target.value) })}
-                        className="w-full accent-indigo-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-                      />
-                      <input
-                        type="number"
-                        min="0.1"
-                        step="0.5"
-                        value={params.height}
-                        onChange={(e) => setParams({ ...params, height: Math.max(0.1, parseFloat(e.target.value) || 1) })}
-                        className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Length for Cube, Cuboid, Prism, Pyramid */}
-                {(params.type === 'cube' ||
-                  params.type === 'cuboid' ||
-                  params.type === 'prism' ||
-                  params.type === 'pyramid') && (
-                  <div>
-                    <div className="flex justify-between text-xs font-medium mb-1">
-                      <span className="text-slate-300">
-                        {params.type === 'cube' || params.type === 'prism' || params.type === 'pyramid'
-                          ? language === 'hi'
-                            ? 'आधार भुजा (Base Side a):'
-                            : 'Base Side (a):'
-                          : language === 'hi'
-                          ? 'लंबाई (Length l):'
-                          : 'Length (l):'}
-                      </span>
-                      <span className="text-emerald-400 font-mono font-bold">{params.length} cm</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="1"
-                        max="100"
-                        step="0.5"
-                        value={params.length}
-                        onChange={(e) => setParams({ ...params, length: parseFloat(e.target.value) })}
-                        className="w-full accent-emerald-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-                      />
-                      <input
-                        type="number"
-                        min="0.1"
-                        step="0.5"
-                        value={params.length}
-                        onChange={(e) => setParams({ ...params, length: Math.max(0.1, parseFloat(e.target.value) || 1) })}
-                        className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Width for Cuboid & Wheel */}
-                {(params.type === 'cuboid' || params.type === 'wheel') && (
-                  <div>
-                    <div className="flex justify-between text-xs font-medium mb-1">
-                      <span className="text-slate-300">
-                        {params.type === 'wheel'
-                          ? language === 'hi'
-                            ? 'पहिए/रोलर की चौड़ाई (Width w):'
-                            : 'Wheel/Roller Width (w):'
-                          : language === 'hi'
-                          ? 'चौड़ाई (Breadth/Width b):'
-                          : 'Breadth / Width (b):'}
-                      </span>
-                      <span className="text-purple-400 font-mono font-bold">{params.width} cm</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="0.5"
-                        max="100"
-                        step="0.5"
-                        value={params.width}
-                        onChange={(e) => setParams({ ...params, width: parseFloat(e.target.value) })}
-                        className="w-full accent-purple-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-                      />
-                      <input
-                        type="number"
-                        min="0.1"
-                        step="0.5"
-                        value={params.width}
-                        onChange={(e) => setParams({ ...params, width: Math.max(0.1, parseFloat(e.target.value) || 1) })}
-                        className="w-16 px-2 py-1 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-center"
-                      />
+                {params.type === 'wheel' && (
+                  <div className="bg-slate-900/90 border border-amber-900/60 rounded-2xl p-3.5 backdrop-blur-md">
+                    <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                      <span>⚙️</span>
+                      {language === 'hi' ? 'पहिया / रोलर विश्लेषण (Wheel Breakdown)' : 'Wheel & Roller Analysis'}
+                    </h4>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="p-2 rounded-lg bg-slate-950/70 border border-amber-500/30">
+                        <div className="text-[10px] text-amber-400 font-bold">{language === 'hi' ? '1 चक्कर दूरी (2πr)' : '1 Rev Dist'}</div>
+                        <div className="font-mono text-amber-300 text-xs font-bold mt-0.5">{(2 * Math.PI * r).toFixed(1)} cm</div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-slate-950/70 border border-emerald-500/30">
+                        <div className="text-[10px] text-emerald-400 font-bold">{language === 'hi' ? 'दबाया क्षेत्र (2πrw)' : 'Contact Area'}</div>
+                        <div className="font-mono text-emerald-300 text-xs font-bold mt-0.5">{(2 * Math.PI * r * (params.width || 1.5)).toFixed(1)} cm²</div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-slate-950/70 border border-cyan-500/30">
+                        <div className="text-[10px] text-cyan-400 font-bold">{language === 'hi' ? '1 किमी में चक्कर' : 'Revs in 1km'}</div>
+                        <div className="font-mono text-cyan-300 text-xs font-bold mt-0.5">{(100000 / (2 * Math.PI * r)).toFixed(0)}</div>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
+            )}
 
-            {/* Calculated Output Stats */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-slate-900/90 border border-indigo-900/50 rounded-xl p-3 relative overflow-hidden">
-                <div className="text-[11px] font-medium text-indigo-300">
-                  {language === 'hi' ? 'आयतन (Volume)' : 'Volume (V)'}
+            {/* TAB 3: FORMULAS & STEP-BY-STEP SOLUTION */}
+            {activeSubView === 'formulas' && (
+              <div className="space-y-3">
+                {/* Formulas Reference */}
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                    <span>{language === 'hi' ? 'सूत्र निर्देशिका (Formula Reference)' : 'Formulas Reference'}</span>
+                    <span className="text-[10px] text-indigo-400 font-normal">Click to copy</span>
+                  </h4>
+                  <div className="space-y-1.5">
+                    {Object.entries(language === 'hi' ? metrics.formulasHi : metrics.formulasEn).map(([key, formula]) => (
+                      <div
+                        key={key}
+                        onClick={() => copyText(formula, key)}
+                        className="flex items-center justify-between p-2 rounded-lg bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800/60 cursor-pointer transition-all text-xs"
+                      >
+                        <span className="text-slate-300 font-medium">{key}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-800/40">
+                            {formula}
+                          </span>
+                          {copiedFormula === key ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="text-xl font-mono font-bold text-white mt-1">
-                  {metrics.volume.toFixed(2)}{' '}
-                  <span className="text-xs font-normal text-slate-400">cm³</span>
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  {(params.type === 'cylinder' && 'π × r² × h') ||
-                    (params.type === 'cone' && '(1/3)π × r² × h') ||
-                    (params.type === 'cube' && 'a³') ||
-                    (params.type === 'cuboid' && 'l × b × h') ||
-                    (params.type === 'sphere' && '(4/3)π × r³') ||
-                    (params.type === 'hemisphere' && '(2/3)π × r³') ||
-                    '(1/3)πh(r1²+r2²+r1r2)'}
+
+                {/* Step-by-Step Derivation */}
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+                  <h4 className="text-xs font-semibold text-white mb-2.5 flex items-center gap-1.5">
+                    <Calculator className="w-3.5 h-3.5 text-emerald-400" />
+                    {language === 'hi'
+                      ? 'स्टेप-बाय-स्टेप गणना (Detailed Steps)'
+                      : 'Detailed Step-by-Step Calculation'}
+                  </h4>
+
+                  <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                    {(language === 'hi' ? metrics.stepsHi : metrics.stepsEn).map((step, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2.5 p-2 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-200"
+                      >
+                        <span className="flex-shrink-0 w-4 h-4 rounded-full bg-indigo-950 text-indigo-400 border border-indigo-700/60 flex items-center justify-center font-bold text-[10px]">
+                          {idx + 1}
+                        </span>
+                        <p className="font-mono pt-0.5">{step}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-
-              <div className="bg-slate-900/90 border border-emerald-900/50 rounded-xl p-3">
-                <div className="text-[11px] font-medium text-emerald-300">
-                  {language === 'hi' ? 'वक्र पृष्ठ (CSA / LSA)' : 'Curved Area (CSA)'}
-                </div>
-                <div className="text-xl font-mono font-bold text-white mt-1">
-                  {metrics.curvedSurfaceArea.toFixed(2)}{' '}
-                  <span className="text-xs font-normal text-slate-400">cm²</span>
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  {(params.type === 'cylinder' && '2 × π × r × h') ||
-                    (params.type === 'cone' && 'π × r × l') ||
-                    (params.type === 'cube' && '4 × a²') ||
-                    (params.type === 'cuboid' && '2h(l + b)') ||
-                    '4 × π × r²'}
-                </div>
-              </div>
-
-              <div className="bg-slate-900/90 border border-amber-900/50 rounded-xl p-3">
-                <div className="text-[11px] font-medium text-amber-300">
-                  {language === 'hi' ? 'कुल पृष्ठ (TSA)' : 'Total Area (TSA)'}
-                </div>
-                <div className="text-xl font-mono font-bold text-white mt-1">
-                  {metrics.totalSurfaceArea.toFixed(2)}{' '}
-                  <span className="text-xs font-normal text-slate-400">cm²</span>
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  {(params.type === 'cylinder' && '2πr(r + h)') ||
-                    (params.type === 'cone' && 'πr(l + r)') ||
-                    (params.type === 'cube' && '6 × a²') ||
-                    (params.type === 'cuboid' && '2(lb + bh + hl)') ||
-                    '4πr²'}
-                </div>
-              </div>
-
-              <div className="bg-slate-900/90 border border-purple-900/50 rounded-xl p-3">
-                <div className="text-[11px] font-medium text-purple-300">
-                  {metrics.slantHeight
-                    ? language === 'hi'
-                      ? 'तिर्यक ऊंचाई (Slant Height l)'
-                      : 'Slant Height (l)'
-                    : metrics.spaceDiagonal
-                    ? language === 'hi'
-                      ? 'विकर्ण (Space Diagonal)'
-                      : 'Space Diagonal (d)'
-                    : language === 'hi'
-                    ? 'व्यास (Diameter)'
-                    : 'Diameter (d)'}
-                </div>
-                <div className="text-xl font-mono font-bold text-white mt-1">
-                  {(metrics.slantHeight || metrics.spaceDiagonal || params.radius * 2).toFixed(2)}{' '}
-                  <span className="text-xs font-normal text-slate-400">cm</span>
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  {metrics.slantHeight ? '√(r² + h²)' : metrics.spaceDiagonal ? '√(l² + b² + h²)' : '2 × r'}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
-
-      {/* Special Deconstructed Components Breakdown Card (For Wheel) */}
-      {params.type === 'wheel' && (
-        <div className="bg-slate-900/90 border border-amber-900/60 rounded-2xl p-4 sm:p-5 backdrop-blur-md">
-          <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-            <span className="text-lg">⚙️</span>
-            {language === 'hi'
-              ? 'पहिया / रोलर के घटकों का सचित्र गणितीय विश्लेषण (Wheel Breakdown)'
-              : 'Wheel & Roller Deconstructed Parts Analysis'}
-          </h4>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Circumference Distance */}
-            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-amber-500/40">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                  {language === 'hi' ? '1. 1 चक्कर में दूरी (परिधि)' : '1. Distance in 1 Rev'}
-                </span>
-                <span className="text-xs font-mono font-bold text-amber-300">2πr</span>
-              </div>
-              <p className="text-xs text-slate-300 mt-1.5 font-mono">
-                = 2 × π × {r} = {(2 * Math.PI * r).toFixed(2)} cm
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                {language === 'hi' ? 'सड़क पर 1 पूरे चक्कर में तय की गई दूरी' : 'Ground distance rolled per revolution'}
-              </p>
-            </div>
-
-            {/* Roller Road Contact */}
-            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-emerald-500/40">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                  {language === 'hi' ? '2. 1 चक्कर में दबाया क्षेत्रफल' : '2. Contact Area'}
-                </span>
-                <span className="text-xs font-mono font-bold text-emerald-300">2πrw</span>
-              </div>
-              <p className="text-xs text-slate-300 mt-1.5 font-mono">
-                = 2 × π × {r} × {params.width || 1.5} = {(2 * Math.PI * r * (params.width || 1.5)).toFixed(2)} cm²
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                {language === 'hi' ? 'रोलर द्वारा सड़क समतल करने का क्षेत्रफल' : 'Road area covered by roller per turn'}
-              </p>
-            </div>
-
-            {/* Revolutions in 1 km */}
-            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-cyan-500/40">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
-                  {language === 'hi' ? '3. 1 किमी (1000m) में चक्कर' : '3. Revs in 1 km'}
-                </span>
-                <span className="text-xs font-mono font-bold text-cyan-300">10⁵ / 2πr</span>
-              </div>
-              <p className="text-xs text-slate-300 mt-1.5 font-mono">
-                = 1,00,000 ÷ {(2 * Math.PI * r).toFixed(2)} = {(100000 / (2 * Math.PI * r)).toFixed(1)} {language === 'hi' ? 'चक्कर' : 'revs'}
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                {language === 'hi' ? 'कुल दूरी ÷ 1 चक्कर की दूरी' : 'Total Distance ÷ Circumference'}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Special Deconstructed Components Breakdown Card (For Belan & other shapes) */}
-      {params.type === 'cylinder' && (
-        <div className="bg-slate-900/90 border border-indigo-900/60 rounded-2xl p-4 sm:p-5 backdrop-blur-md">
-          <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-            <span className="text-lg">🛢️</span>
-            {language === 'hi'
-              ? 'बेलन के अलग-अलग भागों का सचित्र गणितीय विश्लेषण (Parts Breakdown)'
-              : 'Cylinder Deconstructed Parts Analysis'}
-          </h4>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Top Base Lid */}
-            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-emerald-500/40">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                  {language === 'hi' ? '1. ऊपरी वृत्ताकार सिरा' : '1. Top Circular Base'}
-                </span>
-                <span className="text-xs font-mono font-bold text-emerald-300">πr²</span>
-              </div>
-              <p className="text-xs text-slate-300 mt-1.5 font-mono">
-                = π × {r}² = {topBaseArea.toFixed(2)} cm²
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                {language === 'hi' ? 'ऊपर का ढक्कन (वृत्ताकार आधार)' : 'Top circular lid disk'}
-              </p>
-            </div>
-
-            {/* Curved Surface */}
-            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-indigo-500/40">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-400" />
-                  {language === 'hi' ? '2. वक्र पृष्ठ (खुला आयत)' : '2. Curved Lateral Mantle'}
-                </span>
-                <span className="text-xs font-mono font-bold text-indigo-300">2πrh</span>
-              </div>
-              <p className="text-xs text-slate-300 mt-1.5 font-mono">
-                = 2 × π × {r} × {h} = {csaArea.toFixed(2)} cm²
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                {language === 'hi' ? 'लंबाई 2πr (परिधि) × ऊंचाई h' : 'Unrolls into rectangle: 2πr × h'}
-              </p>
-            </div>
-
-            {/* Bottom Base Lid */}
-            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-cyan-500/40">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
-                  {language === 'hi' ? '3. निचला वृत्ताकार सिरा' : '3. Bottom Circular Base'}
-                </span>
-                <span className="text-xs font-mono font-bold text-cyan-300">πr²</span>
-              </div>
-              <p className="text-xs text-slate-300 mt-1.5 font-mono">
-                = π × {r}² = {botBaseArea.toFixed(2)} cm²
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                {language === 'hi' ? 'नीचे का तला (वृत्ताकार आधार)' : 'Bottom circular base disk'}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="text-indigo-200 font-medium">
-              💡 {language === 'hi' ? 'कुल पृष्ठीय क्षेत्रफल (TSA) = वक्र पृष्ठ + दोनों सिरों का क्षेत्रफल' : 'Total Surface Area (TSA) = CSA + 2 × Base Area'}
-            </span>
-            <span className="font-mono text-emerald-300 font-bold">
-              TSA = {csaArea.toFixed(2)} + 2 × {topBaseArea.toFixed(2)} = {tsaArea.toFixed(2)} cm²
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Formulas Reference Table & Step-by-step Solution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Formulas Cheat-Sheet */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5">
-          <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center justify-between">
-            <span>{language === 'hi' ? 'सूत्र निर्देशिका (Formula Reference)' : 'Formulas Reference'}</span>
-            <span className="text-[10px] text-indigo-400 font-normal">Click to copy</span>
-          </h4>
-          <div className="space-y-1.5">
-            {Object.entries(language === 'hi' ? metrics.formulasHi : metrics.formulasEn).map(([key, formula]) => (
-              <div
-                key={key}
-                onClick={() => copyText(formula, key)}
-                className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800/60 cursor-pointer transition-all text-xs"
-              >
-                <span className="text-slate-300 font-medium">{key}</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-800/40">
-                    {formula}
-                  </span>
-                  {copiedFormula === key ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300" />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Step-by-Step Derivation Card */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 backdrop-blur-md">
-          <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Calculator className="w-4 h-4 text-emerald-400" />
-            {language === 'hi'
-              ? 'स्टेप-बाय-स्टेप गणना (Detailed Steps)'
-              : 'Detailed Step-by-Step Derivation'}
-          </h4>
-
-          <div className="space-y-2">
-            {(language === 'hi' ? metrics.stepsHi : metrics.stepsEn).map((step, idx) => (
-              <div
-                key={idx}
-                className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-200"
-              >
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-950 text-indigo-400 border border-indigo-700/60 flex items-center justify-center font-bold text-[11px]">
-                  {idx + 1}
-                </span>
-                <p className="font-mono pt-0.5">{step}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CubeCutParams, CubeFace, FaceColors, MiniCubeData } from '../types';
+import { ActiveTab, CubeCutParams, CubeFace, FaceColors, MiniCubeData } from '../types';
 import { generateMiniCubes } from '../utils/mathFormulas';
 import { ThreeCanvas } from './ThreeCanvas';
 import { ExportActionMenu } from './ExportActionMenu';
@@ -12,6 +12,7 @@ interface CubeCuttingLabTabProps {
   diagramOnlyMode?: boolean;
   onToggleDiagramOnly?: () => void;
   onCancelDiagramOnly?: () => void;
+  onSelectTab?: (tab: ActiveTab) => void;
 }
 
 export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
@@ -21,6 +22,7 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
   diagramOnlyMode = false,
   onToggleDiagramOnly,
   onCancelDiagramOnly,
+  onSelectTab,
 }) => {
   const [params, setParams] = useState<CubeCutParams>({
     isCuboid: false,
@@ -179,9 +181,9 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
           </button>
         </div>
 
-        {/* Floating Title Badge */}
-        <div className="absolute top-4 left-4 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 py-2 text-xs font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none">
-          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse" />
+        {/* Floating Title Badge at Top Center (Unobstructed from 3D controls at top-left) */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none max-w-[90vw] truncate">
+          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse shrink-0" />
           <span>{language === 'hi' ? `${params.isCuboid ? 'घनाभ' : 'घन'} 3D डायग्राम` : '3D Cube Slicing Diagram'}</span>
           <span className="text-slate-400 font-mono">
             ({params.isCuboid ? `${params.nx}×${params.ny}×${params.nz}` : `${params.n}×${params.n}×${params.n}`})
@@ -210,7 +212,43 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
     <div className="space-y-4">
       {/* Top Banner: Mode Selector & Presets in a sleek compact single bar */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2.5 backdrop-blur-md">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Module switch buttons */}
+          {onSelectTab && (
+            <div className="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => onSelectTab('geometry_2d')}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                title={language === 'hi' ? '2D ज्यामिति पर जाएं' : 'Switch to 2D Geometry'}
+              >
+                <span>📐</span>
+                <span>{language === 'hi' ? '2D आकृतियां' : '2D Shapes'}</span>
+              </button>
+              <button
+                onClick={() => onSelectTab('shapes_3d')}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                title={language === 'hi' ? '3D ठोस पर जाएं' : 'Switch to 3D Solids'}
+              >
+                <span>📦</span>
+                <span>{language === 'hi' ? '3D ठोस' : '3D Solids'}</span>
+              </button>
+              <button
+                onClick={() => onSelectTab('dice_reasoning')}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                title={language === 'hi' ? 'पासा रीज़निंग पर जाएं' : 'Switch to Dice Reasoning'}
+              >
+                <span>🎲</span>
+                <span>{language === 'hi' ? 'पासा (Dice)' : 'Dice'}</span>
+              </button>
+              <button
+                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all flex items-center gap-1"
+              >
+                <span>🧊</span>
+                <span>{language === 'hi' ? 'घन काटना' : 'Cube Slicing'}</span>
+              </button>
+            </div>
+          )}
+
           <div className="flex p-0.5 bg-slate-950 rounded-lg border border-slate-800">
             <button
               id="btn-mode-cube"
@@ -222,7 +260,7 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
               }`}
             >
               <Box className="w-3.5 h-3.5" />
-              <span>{language === 'hi' ? 'घन काटना' : 'Cube Slicing'}</span>
+              <span>{language === 'hi' ? 'घन' : 'Cube'}</span>
             </button>
             <button
               id="btn-mode-cuboid"
@@ -234,7 +272,7 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>{language === 'hi' ? 'घनाभ काटना' : 'Cuboid Slicing'}</span>
+              <span>{language === 'hi' ? 'घनाभ' : 'Cuboid'}</span>
             </button>
           </div>
 

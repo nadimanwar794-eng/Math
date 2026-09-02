@@ -22,13 +22,14 @@ import {
   Maximize2,
   X,
 } from 'lucide-react';
-import { SingleDiceView } from '../types';
+import { ActiveTab, SingleDiceView } from '../types';
 
 interface DiceReasoningTabProps {
   language: 'hi' | 'en';
   diagramOnlyMode?: boolean;
   onToggleDiagramOnly?: () => void;
   onCancelDiagramOnly?: () => void;
+  onSelectTab?: (tab: ActiveTab) => void;
 }
 
 export const DiceReasoningTab: React.FC<DiceReasoningTabProps> = ({
@@ -36,6 +37,7 @@ export const DiceReasoningTab: React.FC<DiceReasoningTabProps> = ({
   diagramOnlyMode = false,
   onToggleDiagramOnly,
   onCancelDiagramOnly,
+  onSelectTab,
 }) => {
   const [subTab, setSubTab] = useState<'opposite_solver' | 'open_dice' | 'standard_vs_ordinary'>(
     'opposite_solver'
@@ -406,10 +408,10 @@ export const DiceReasoningTab: React.FC<DiceReasoningTabProps> = ({
           </button>
         </div>
 
-        {/* Floating Title Badge at Top Left */}
-        <div className="absolute top-4 left-4 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 py-2 text-xs font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none">
-          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse" />
-          <span>
+        {/* Floating Title Badge at Top Center (Unobstructed from 3D controls at top-left) */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none max-w-[90vw] truncate">
+          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse shrink-0" />
+          <span className="truncate">
             {language === 'hi'
               ? subTab === 'open_dice'
                 ? `पासा 3D नेट अनफोल्डिंग (स्टेप ${unfoldStep}/5)`
@@ -448,58 +450,110 @@ export const DiceReasoningTab: React.FC<DiceReasoningTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Sub Tab Navigation */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2 flex flex-wrap items-center gap-2 backdrop-blur-md">
-        <button
-          onClick={() => setSubTab('opposite_solver')}
-          className={`flex-1 min-w-[150px] py-2.5 px-4 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
-            subTab === 'opposite_solver'
-              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <Dices className="w-4 h-4" />
-          <span>{language === 'hi' ? 'पासा विश्लेषक (1 से 4 पासे)' : 'Multi-Dice Solver (1-4 Dice)'}</span>
-        </button>
+      {/* Module Navigation & Sub Tab Navigation */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 space-y-2 backdrop-blur-md">
+        {/* Quick Module Switcher Ribbon */}
+        {onSelectTab && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
+            <div className="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => onSelectTab('geometry_2d')}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                title={language === 'hi' ? '2D ज्यामिति पर जाएं' : 'Switch to 2D Geometry'}
+              >
+                <span>📐</span>
+                <span>{language === 'hi' ? '2D आकृतियां' : '2D Shapes'}</span>
+              </button>
+              <button
+                onClick={() => onSelectTab('shapes_3d')}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                title={language === 'hi' ? '3D ठोस पर जाएं' : 'Switch to 3D Solids'}
+              >
+                <span>📦</span>
+                <span>{language === 'hi' ? '3D ठोस' : '3D Solids'}</span>
+              </button>
+              <button
+                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all flex items-center gap-1"
+              >
+                <span>🎲</span>
+                <span>{language === 'hi' ? 'पासा (Dice)' : 'Dice'}</span>
+              </button>
+              <button
+                onClick={() => onSelectTab('cutting_lab')}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                title={language === 'hi' ? 'घन काटना लैब पर जाएं' : 'Switch to Cube Slicing'}
+              >
+                <span>🧊</span>
+                <span>{language === 'hi' ? 'घन काटना' : 'Cube Slicing'}</span>
+              </button>
+            </div>
 
-        <button
-          onClick={() => {
-            setSubTab('open_dice');
-            setStepMode(true);
-            setUnfoldStep(1);
-          }}
-          className={`flex-1 min-w-[150px] py-2.5 px-4 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
-            subTab === 'open_dice'
-              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>{language === 'hi' ? 'एक-एक कर पासा खोलें (Step 3D Net)' : 'Step-by-Step 3D Unfold'}</span>
-        </button>
+            {/* Trigger Only Diagram Mode */}
+            <button
+              id="btn-trigger-only-diagram-dice"
+              onClick={onToggleDiagramOnly}
+              className="py-1.5 px-3 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
+            </button>
+          </div>
+        )}
 
-        <button
-          onClick={() => setSubTab('standard_vs_ordinary')}
-          className={`flex-1 min-w-[150px] py-2.5 px-4 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
-            subTab === 'standard_vs_ordinary'
-              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <Lightbulb className="w-4 h-4" />
-          <span>{language === 'hi' ? 'मानक vs साधारण पासा नियम' : 'Dice Concepts & Rules'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSubTab('opposite_solver')}
+            className={`flex-1 min-w-[150px] py-2 px-3.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+              subTab === 'opposite_solver'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Dices className="w-4 h-4" />
+            <span>{language === 'hi' ? 'पासा विश्लेषक (1 से 4 पासे)' : 'Multi-Dice Solver (1-4 Dice)'}</span>
+          </button>
 
-        {/* Trigger Only Diagram Mode */}
-        <button
-          id="btn-trigger-only-diagram-dice"
-          onClick={onToggleDiagramOnly}
-          className="py-2 px-3 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-          title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
-        >
-          <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
-          <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
-        </button>
+          <button
+            onClick={() => {
+              setSubTab('open_dice');
+              setStepMode(true);
+              setUnfoldStep(1);
+            }}
+            className={`flex-1 min-w-[150px] py-2 px-3.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+              subTab === 'open_dice'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>{language === 'hi' ? 'एक-एक कर पासा खोलें (Step 3D Net)' : 'Step-by-Step 3D Unfold'}</span>
+          </button>
+
+          <button
+            onClick={() => setSubTab('standard_vs_ordinary')}
+            className={`flex-1 min-w-[150px] py-2 px-3.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+              subTab === 'standard_vs_ordinary'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Lightbulb className="w-4 h-4" />
+            <span>{language === 'hi' ? 'मानक vs साधारण पासा नियम' : 'Dice Concepts & Rules'}</span>
+          </button>
+
+          {!onSelectTab && (
+            <button
+              id="btn-trigger-only-diagram-dice"
+              onClick={onToggleDiagramOnly}
+              className="py-2 px-3 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* =================================================================== */}

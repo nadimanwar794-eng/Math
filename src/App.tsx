@@ -8,6 +8,15 @@ import { DiceReasoningTab } from './components/DiceReasoningTab';
 import { PracticeQuizTab } from './components/PracticeQuizTab';
 import { OfflineSolverTab } from './components/OfflineSolverTab';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import {
+  Box,
+  Brain,
+  Calculator,
+  Compass,
+  Dices,
+  Layers,
+  Sparkles,
+} from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('cutting_lab');
@@ -88,6 +97,7 @@ export default function App() {
             diagramOnlyMode={diagramOnlyMode}
             onToggleDiagramOnly={handleToggleDiagramOnly}
             onCancelDiagramOnly={() => setDiagramOnlyMode(false)}
+            onSelectTab={setActiveTab}
           />
         )}
         {activeTab === 'shapes_3d' && (
@@ -99,6 +109,7 @@ export default function App() {
             diagramOnlyMode={diagramOnlyMode}
             onToggleDiagramOnly={handleToggleDiagramOnly}
             onCancelDiagramOnly={() => setDiagramOnlyMode(false)}
+            onSelectTab={setActiveTab}
           />
         )}
         {activeTab === 'geometry_2d' && (
@@ -108,6 +119,7 @@ export default function App() {
             diagramOnlyMode={diagramOnlyMode}
             onToggleDiagramOnly={handleToggleDiagramOnly}
             onCancelDiagramOnly={() => setDiagramOnlyMode(false)}
+            onSelectTab={setActiveTab}
           />
         )}
         {activeTab === 'dice_reasoning' && (
@@ -116,6 +128,7 @@ export default function App() {
             diagramOnlyMode={diagramOnlyMode}
             onToggleDiagramOnly={handleToggleDiagramOnly}
             onCancelDiagramOnly={() => setDiagramOnlyMode(false)}
+            onSelectTab={setActiveTab}
           />
         )}
         {activeTab === 'offline_solver' && <OfflineSolverTab language={language} />}
@@ -125,20 +138,60 @@ export default function App() {
       {/* Connectivity & Offline Status Indicator - hidden in diagramOnlyMode */}
       {!diagramOnlyMode && <OfflineIndicator language={language} />}
 
-      {/* Footer - hidden in diagramOnlyMode */}
+      {/* Interactive Footer & Quick Module Selector - hidden in diagramOnlyMode */}
       {!diagramOnlyMode && !projectorMode && !focusMode && (
-        <footer className="border-t border-slate-900 bg-slate-950/60 py-3 text-center text-xs text-slate-500">
-          <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span>
-              {language === 'hi'
-                ? '3D व 2D गणित ज्यामिति, क्षेत्रमिति व रीज़निंग लैब • 100% ऑफ़लाइन'
-                : '3D & 2D Geometry, Mensuration & Reasoning Studio • 100% Offline'}
-            </span>
-            <span className="text-slate-600 font-mono text-[11px]">
-              {language === 'hi'
-                ? 'सिर्फ डायग्राम के लिए "केवल डायग्राम मोड" बटन या "D" दबाएं'
-                : 'Press D or click "Only Diagram Mode" for pure fullscreen diagram'}
-            </span>
+        <footer className="border-t border-slate-900 bg-slate-950/80 backdrop-blur-md py-3 sm:py-4 text-xs text-slate-400">
+          <div className="max-w-7xl mx-auto px-4 flex flex-col gap-3">
+            {/* Quick 2D, 3D, Dice, Cube Slicing Module Selector in Footer */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2 sm:p-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300 px-2 py-0.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>{language === 'hi' ? 'त्वरित चयन / नेविगेशन:' : 'Quick Select:'}</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                {[
+                  { id: 'geometry_2d' as ActiveTab, nameHi: '📐 2D ज्यामिति', nameEn: '📐 2D Geometry' },
+                  { id: 'shapes_3d' as ActiveTab, nameHi: '📦 3D ठोस', nameEn: '📦 3D Solids' },
+                  { id: 'dice_reasoning' as ActiveTab, nameHi: '🎲 पासा (Dice)', nameEn: '🎲 Dice Reasoning' },
+                  { id: 'cutting_lab' as ActiveTab, nameHi: '🧊 घन काटना', nameEn: '🧊 Cube Slicing' },
+                  { id: 'offline_solver' as ActiveTab, nameHi: '🧮 सॉल्वर', nameEn: '🧮 Solver' },
+                  { id: 'quiz_practice' as ActiveTab, nameHi: '🧠 क्विज़', nameEn: '🧠 Quiz' },
+                ].map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400'
+                          : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
+                      }`}
+                    >
+                      <span>{language === 'hi' ? item.nameHi : item.nameEn}</span>
+                      {isActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bottom Credits & Info */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 pt-0.5 text-center sm:text-left">
+              <span>
+                {language === 'hi'
+                  ? '3D व 2D गणित ज्यामिति, क्षेत्रमिति व रीज़निंग लैब • 100% ऑफ़लाइन'
+                  : '3D & 2D Geometry, Mensuration & Reasoning Studio • 100% Offline'}
+              </span>
+              <span className="text-slate-600 font-mono text-[11px]">
+                {language === 'hi'
+                  ? 'सिर्फ डायग्राम के लिए "केवल डायग्राम मोड" बटन या "D" दबाएं'
+                  : 'Press D or click "Only Diagram Mode" for pure fullscreen diagram'}
+              </span>
+            </div>
           </div>
         </footer>
       )}

@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Copy,
   Check,
-  Printer,
   Sparkles,
   Lightbulb,
   Target,
@@ -120,7 +119,7 @@ export const TextbookWhitePage: React.FC<TextbookWhitePageProps> = ({
   return (
     <div className="w-full flex flex-col space-y-3">
       {/* Textbook Page Toolbar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2 shadow-md">
+      <div className="relative z-30 bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2 shadow-md">
         <div className="flex items-center gap-1.5 text-xs text-slate-300">
           <BookOpen className="w-4 h-4 text-indigo-400" />
           <span className="font-bold text-white">

@@ -6,7 +6,6 @@ import {
   Copy,
   HelpCircle,
   Loader2,
-  Printer,
   Send,
   Sparkles,
   Wand2,
@@ -206,15 +205,6 @@ export const AiSolverTab: React.FC<AiSolverTabProps> = ({ language }) => {
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? (language === 'hi' ? 'कॉपी हुआ' : 'Copied') : (language === 'hi' ? 'कॉपी' : 'Copy')}</span>
-              </button>
-
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow"
-                title="Print"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>{language === 'hi' ? 'प्रिंट' : 'Print'}</span>
               </button>
             </div>
           </div>

@@ -15,10 +15,8 @@ import {
   Layers,
   Maximize2,
   Minimize2,
-  Printer,
   Tv,
 } from 'lucide-react';
-import { triggerPrint } from '../utils/exportUtils';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -267,17 +265,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             >
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            </button>
-
-            {/* Print / Save as PDF Button */}
-            <button
-              id="btn-navbar-print"
-              onClick={triggerPrint}
-              className="p-1 sm:px-2 sm:py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-[11px] text-slate-300 hover:text-white font-semibold flex items-center gap-1 transition-all"
-              title={language === 'hi' ? 'प्रिंट / PDF के रूप में सेव करें' : 'Print / Save as PDF'}
-            >
-              <Printer className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden sm:inline">{language === 'hi' ? 'प्रिंट' : 'Print'}</span>
             </button>
 
             {/* Language Switcher */}

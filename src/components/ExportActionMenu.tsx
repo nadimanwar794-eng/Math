@@ -1,19 +1,14 @@
 import React, { useState } from 'react';
 import {
-  Printer,
   Download,
   Share2,
   Copy,
   Check,
   FileCode,
-  FileText,
   ChevronDown,
-  Sparkles,
 } from 'lucide-react';
 import {
-  downloadMHTMLFile,
   downloadOfflineHTMLFile,
-  triggerPrint,
   shareContent,
 } from '../utils/exportUtils';
 
@@ -45,18 +40,6 @@ export const ExportActionMenu: React.FC<ExportActionMenuProps> = ({
     setTimeout(() => setStatusMsg(null), 2500);
   };
 
-  const handlePrint = () => {
-    setDropdownOpen(false);
-    triggerPrint();
-  };
-
-  const handleDownloadMHTML = () => {
-    setDropdownOpen(false);
-    const html = getHTMLContent();
-    downloadMHTMLFile(filename, title, html, extraStyles);
-    showStatus(language === 'hi' ? 'MHTML फ़ाइल डाउनलोड हो गई!' : 'MHTML file downloaded!');
-  };
-
   const handleDownloadHTML = () => {
     setDropdownOpen(false);
     const html = getHTMLContent();
@@ -65,6 +48,7 @@ export const ExportActionMenu: React.FC<ExportActionMenuProps> = ({
   };
 
   const handleCopyText = async () => {
+    setDropdownOpen(false);
     const text = getPlainText ? getPlainText() : title;
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -82,117 +66,97 @@ export const ExportActionMenu: React.FC<ExportActionMenuProps> = ({
   };
 
   return (
-    <div className={`relative inline-flex items-center gap-1.5 ${className}`}>
+    <div className={`relative z-40 inline-flex items-center gap-1.5 ${className}`}>
       {/* Toast feedback */}
       {statusMsg && (
-        <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-medium text-xs px-3 py-1 rounded-lg shadow-lg whitespace-nowrap animate-fade-in pointer-events-none">
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600 text-white font-medium text-xs px-3 py-1 rounded-lg shadow-lg whitespace-nowrap animate-fade-in pointer-events-none">
           {statusMsg}
         </div>
       )}
 
-      {/* Primary Print / PDF Button */}
+      {/* Primary Direct Download Button */}
       <button
-        onClick={handlePrint}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-all active:scale-95"
-        title={language === 'hi' ? 'प्रिंट / PDF के रूप में सेव करें' : 'Print / Save as PDF'}
+        onClick={handleDownloadHTML}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
+        title={language === 'hi' ? 'ऑफ़लाइन HTML फ़ाइल डाउनलोड करें' : 'Download Offline HTML'}
       >
-        <Printer className="w-3.5 h-3.5" />
-        <span>{language === 'hi' ? 'प्रिंट / PDF' : 'Print / PDF'}</span>
+        <Download className="w-3.5 h-3.5 text-white" />
+        <span>{language === 'hi' ? 'डाउनलोड' : 'Download'}</span>
       </button>
 
-      {/* MHTML / HTML Download Dropdown Button */}
+      {/* More Export / Share Options Dropdown */}
       <div className="relative">
         <button
           onClick={() => setDropdownOpen((prev) => !prev)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold shadow-md transition-all active:scale-95"
-          title={language === 'hi' ? 'मोबाइल में डाउनलोड (MHTML / HTML)' : 'Download Options (MHTML / HTML)'}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium shadow-md transition-all active:scale-95 cursor-pointer"
+          title={language === 'hi' ? 'डाउनलोड व शेयर विकल्प' : 'Download & Share Options'}
         >
-          <Download className="w-3.5 h-3.5 text-amber-400" />
-          <span>{language === 'hi' ? 'डाउनलोड (MHTML)' : 'Download'}</span>
-          <ChevronDown className="w-3 h-3 text-slate-400" />
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dropdownOpen ? 'rotate-180 text-indigo-400' : 'text-slate-400'}`} />
         </button>
 
-        {/* Dropdown Menu */}
+        {/* Dropdown Menu - floats securely above all canvases and diagrams */}
         {dropdownOpen && (
           <>
             <div
-              className="fixed inset-0 z-40"
+              className="fixed inset-0 z-[9990]"
               onClick={() => setDropdownOpen(false)}
             />
-            <div className="absolute right-0 mt-1.5 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1.5 z-50 text-xs space-y-1 animate-scale-up">
+            <div className="absolute right-0 top-full mt-2 w-64 bg-slate-900/98 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl p-2 z-[9999] text-xs space-y-1.5 ring-1 ring-white/10 animate-scale-up">
               <div className="px-2.5 py-1.5 text-[11px] font-bold text-slate-400 border-b border-slate-800 flex items-center justify-between">
-                <span>{language === 'hi' ? 'मोबाइल में डाउनलोड / सेव' : 'Direct Mobile Download'}</span>
-                <span className="text-[10px] text-amber-400 font-mono">100% Offline</span>
+                <span>{language === 'hi' ? 'डाउनलोड व शेयर विकल्प' : 'Download & Share Options'}</span>
+                <span className="text-[10px] text-emerald-400 font-mono">100% Offline</span>
               </div>
 
-              {/* 1. MHTML Option */}
+              {/* 1. Offline HTML Download */}
               <button
-                onClick={handleDownloadMHTML}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-indigo-950/80 text-left text-slate-200 hover:text-white transition-all group"
+                onClick={handleDownloadHTML}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-indigo-950/80 text-left text-slate-200 hover:text-white transition-all group cursor-pointer"
               >
-                <div className="w-6 h-6 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold font-mono text-[10px] shrink-0 group-hover:scale-110 transition-transform">
-                  MHT
+                <div className="w-7 h-7 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <FileCode className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
                   <div className="font-bold text-slate-100 flex items-center gap-1">
-                    <span>{language === 'hi' ? 'MHTML वेब आर्काइव (.mhtml)' : 'MHTML Web Archive (.mhtml)'}</span>
+                    <span>{language === 'hi' ? 'ऑफ़लाइन HTML फ़ाइल (.html)' : 'Offline Webpage (.html)'}</span>
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    {language === 'hi' ? 'मोबाइल में बिना इंटरनेट खुलेगा' : 'Single offline file for mobile'}
+                    {language === 'hi' ? 'बिना इंटरनेट किसी भी ब्राउज़र में खुलेगी' : 'Opens in any browser offline'}
                   </div>
                 </div>
               </button>
 
-              {/* 2. HTML Standalone Option */}
+              {/* 2. Copy Solution Text */}
               <button
-                onClick={handleDownloadHTML}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-indigo-950/80 text-left text-slate-200 hover:text-white transition-all group"
+                onClick={handleCopyText}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-indigo-950/80 text-left text-slate-200 hover:text-white transition-all group cursor-pointer"
               >
-                <div className="w-6 h-6 rounded-md bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <FileCode className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-md bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 </div>
                 <div className="flex-1">
                   <div className="font-bold text-slate-100">
-                    {language === 'hi' ? 'ऑफ़लाइन वेबपेज (.html)' : 'Offline Webpage (.html)'}
+                    {language === 'hi' ? 'पूरा हल टेक्स्ट कॉपी करें' : 'Copy Full Text / Solution'}
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    {language === 'hi' ? 'किसी भी ब्राउज़र में सीधे खुलेगा' : 'Open directly in any browser'}
+                    {language === 'hi' ? 'क्लिपबोर्ड में कॉपी करें' : 'Copy directly to clipboard'}
                   </div>
                 </div>
               </button>
 
-              {/* 3. Print / Save as PDF */}
-              <button
-                onClick={handlePrint}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-indigo-950/80 text-left text-slate-200 hover:text-white transition-all group"
-              >
-                <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Printer className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-bold text-slate-100">
-                    {language === 'hi' ? 'प्रिंट / PDF के रूप में सेव' : 'Print / Save as PDF'}
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    {language === 'hi' ? 'मोबाइल में PDF डाउनलोड करें' : 'Print dialog / PDF export'}
-                  </div>
-                </div>
-              </button>
-
-              {/* 4. Share to WhatsApp / Apps */}
+              {/* 3. Share to WhatsApp / Mobile Apps */}
               <button
                 onClick={handleShare}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-indigo-950/80 text-left text-slate-200 hover:text-white transition-all group"
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-indigo-950/80 text-left text-slate-200 hover:text-white transition-all group cursor-pointer"
               >
-                <div className="w-6 h-6 rounded-md bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Share2 className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-md bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Share2 className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
                   <div className="font-bold text-slate-100">
-                    {language === 'hi' ? 'मोबाइल शेयर (WhatsApp / Drive)' : 'Share (WhatsApp / Drive)'}
+                    {language === 'hi' ? 'मोबाइल शेयर (WhatsApp / Apps)' : 'Share (WhatsApp / Apps)'}
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    {language === 'hi' ? 'ऐप्स में सीधे भेजें' : 'Share to mobile apps'}
+                    {language === 'hi' ? 'मोबाइल ऐप्स में सीधे भेजें' : 'Share to mobile applications'}
                   </div>
                 </div>
               </button>
@@ -204,14 +168,15 @@ export const ExportActionMenu: React.FC<ExportActionMenuProps> = ({
       {/* Quick Copy Text Button */}
       <button
         onClick={handleCopyText}
-        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-medium transition-all active:scale-95"
+        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-medium transition-all active:scale-95 cursor-pointer"
         title={language === 'hi' ? 'पूरा हल टेक्स्ट कॉपी करें' : 'Copy text to clipboard'}
       >
         {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
         <span className="hidden sm:inline">
-          {copied ? (language === 'hi' ? 'कॉपी हुआ' : 'Copied') : (language === 'hi' ? 'कॉपी' : 'Copy')}
+          {copied ? (language === 'hi' ? 'कॉपी हुआ' : 'कॉपी') : (language === 'hi' ? 'कॉपी' : 'Copy')}
         </span>
       </button>
     </div>
   );
 };
+
