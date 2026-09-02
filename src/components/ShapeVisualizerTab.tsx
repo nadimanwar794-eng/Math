@@ -24,9 +24,16 @@ import {
 interface ShapeVisualizerTabProps {
   language: 'hi' | 'en';
   projectorMode?: boolean;
+  focusMode?: boolean;
+  onToggleFocus?: () => void;
 }
 
-export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({ language, projectorMode = false }) => {
+export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
+  language,
+  projectorMode = false,
+  focusMode = false,
+  onToggleFocus,
+}) => {
   const [params, setParams] = useState<ShapeParams>({
     type: 'cylinder',
     radius: 4,
@@ -174,67 +181,67 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({ language
   const tsaArea = csaArea + topBaseArea + botBaseArea;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Top Header & Layout Mode Switcher */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-4 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-xl">
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 sm:p-3 backdrop-blur-md flex flex-wrap items-center justify-between gap-2 shadow-lg">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-lg shrink-0">
             📐
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              {language === 'hi' ? '3D ठोस व घटक पृथक्करण लैब' : '3D Geometry & Parts Deconstruction Studio'}
-              <span className="text-[11px] font-mono font-normal px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                100% Offline 3D
+            <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-1.5">
+              <span>{language === 'hi' ? '3D ठोस व घटक पृथक्करण' : '3D Geometry & Deconstruction'}</span>
+              <span className="text-[10px] font-mono font-normal px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                100% Offline
               </span>
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-[11px] text-slate-400 hidden sm:block">
               {language === 'hi'
                 ? 'बेलन, शंकु, घन, घनाभ के सभी भागों (वक्र पृष्ठ, आधार) को 3D में अलग करके समझें'
-                : 'Deconstruct solids into lateral surface, top & bottom bases with 16:9 widescreen view'}
+                : 'Deconstruct solids into lateral surface, top & bottom bases'}
             </p>
           </div>
         </div>
 
         {/* View Mode Switcher (16:9 Screen vs Split View) */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-950 border border-slate-800 rounded-xl">
+        <div className="flex items-center gap-1 p-0.5 bg-slate-950 border border-slate-800 rounded-lg">
           <button
             id="btn-mode-split"
             onClick={() => setViewLayout('split')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
               viewLayout === 'split'
                 ? 'bg-indigo-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <Split className="w-3.5 h-3.5" />
-            <span>{language === 'hi' ? 'विभाजित दृश्य (Split)' : 'Split View'}</span>
+            <span>{language === 'hi' ? 'विभाजित' : 'Split'}</span>
           </button>
 
           <button
             id="btn-mode-169"
             onClick={() => setViewLayout('widescreen169')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
               viewLayout === 'widescreen169'
                 ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <Tv className="w-3.5 h-3.5 text-cyan-300" />
-            <span>{language === 'hi' ? 'कंप्यूटर 16:9 स्क्रीन मोड' : '16:9 Widescreen Mode'}</span>
+            <span>{language === 'hi' ? '16:9 स्क्रीन' : '16:9 View'}</span>
           </button>
         </div>
       </div>
 
       {/* Shape Selector Ribbon */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-4 backdrop-blur-md">
-        <div className="flex items-center justify-between mb-2.5 px-1">
-          <h3 className="text-xs sm:text-sm font-semibold text-slate-300 flex items-center gap-2">
-            <Box className="w-4 h-4 text-indigo-400" />
-            {language === 'hi' ? '3D ठोस आकृति चुनें (Select 3D Solid)' : 'Select 3D Shape'}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 sm:p-2.5 backdrop-blur-md">
+        <div className="flex items-center justify-between mb-1.5 px-1">
+          <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+            <Box className="w-3.5 h-3.5 text-indigo-400" />
+            <span>{language === 'hi' ? '3D ठोस आकृति चुनें' : 'Select 3D Shape'}</span>
           </h3>
-          <span className="text-[11px] text-slate-400">
-            {language === 'hi' ? 'आकृति बदलें और पार्ट्स अलग करें' : 'Change solid shape'}
+          <span className="text-[10px] text-slate-400">
+            {language === 'hi' ? 'पार्ट्स अलग करके देखें' : 'Click to deconstruct'}
           </span>
         </div>
 

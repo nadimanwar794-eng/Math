@@ -6,9 +6,15 @@ import { Box, CheckCircle2, ChevronRight, Eye, Filter, Info, Layers, Palette, Sp
 
 interface CubeCuttingLabTabProps {
   language: 'hi' | 'en';
+  focusMode?: boolean;
+  onToggleFocus?: () => void;
 }
 
-export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({ language }) => {
+export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
+  language,
+  focusMode = false,
+  onToggleFocus,
+}) => {
   const [params, setParams] = useState<CubeCutParams>({
     isCuboid: false,
     n: 3, // 3x3x3 = 27 mini cubes
@@ -70,76 +76,70 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({ language }
     : 3 * Math.max(0, params.n - 1);
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner: Mode Selector (Cube vs Cuboid) & Presets */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="flex p-1 bg-slate-950 rounded-xl border border-slate-800">
+    <div className="space-y-4">
+      {/* Top Banner: Mode Selector & Presets in a sleek compact single bar */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2.5 backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <div className="flex p-0.5 bg-slate-950 rounded-lg border border-slate-800">
             <button
               id="btn-mode-cube"
               onClick={() => setParams((p) => ({ ...p, isCuboid: false }))}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 !params.isCuboid
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Box className="w-4 h-4" />
-              {language === 'hi' ? 'घन काटना (Cube Cutting)' : 'Cube Slicing'}
+              <Box className="w-3.5 h-3.5" />
+              <span>{language === 'hi' ? 'घन काटना' : 'Cube Slicing'}</span>
             </button>
             <button
               id="btn-mode-cuboid"
               onClick={() => setParams((p) => ({ ...p, isCuboid: true }))}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 params.isCuboid
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Layers className="w-4 h-4" />
-              {language === 'hi' ? 'घनाभ काटना (Cuboid Cutting)' : 'Cuboid Slicing'}
+              <Layers className="w-3.5 h-3.5" />
+              <span>{language === 'hi' ? 'घनाभ काटना' : 'Cuboid Slicing'}</span>
             </button>
           </div>
-
-          <span className="hidden sm:inline text-xs text-slate-400">
-            {language === 'hi'
-              ? 'टुकड़ों को 3D में अलग-अलग देखें और रंगें'
-              : 'Interactive 3D Slicing & Reasoning'}
-          </span>
         </div>
 
         {/* Quick Color Presets */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 flex items-center gap-1">
-            <Palette className="w-3.5 h-3.5 text-indigo-400" />
-            {language === 'hi' ? 'रंग प्रीसेट:' : 'Presets:'}
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          <span className="text-[11px] text-slate-400 flex items-center gap-1 shrink-0">
+            <Palette className="w-3 h-3 text-indigo-400" />
+            <span className="hidden sm:inline">{language === 'hi' ? 'रंग:' : 'Color:'}</span>
           </span>
           <button
             onClick={() => applyPresetColoring('all_red')}
-            className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-red-950/80 text-red-300 border border-red-800/60 hover:bg-red-900/80 transition-all"
+            className="px-2 py-1 rounded text-[11px] font-medium bg-red-950/80 text-red-300 border border-red-800/60 hover:bg-red-900/80 transition-all shrink-0"
           >
-            {language === 'hi' ? 'सभी लाल (All Red)' : 'All Red'}
+            {language === 'hi' ? 'सभी लाल' : 'All Red'}
           </button>
           <button
             onClick={() => applyPresetColoring('opposite_same')}
-            className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-blue-950/80 text-blue-300 border border-blue-800/60 hover:bg-blue-900/80 transition-all"
+            className="px-2 py-1 rounded text-[11px] font-medium bg-blue-950/80 text-blue-300 border border-blue-800/60 hover:bg-blue-900/80 transition-all shrink-0"
           >
-            {language === 'hi' ? 'विपरीत समान (3 Pairs)' : 'Opposite Same'}
+            {language === 'hi' ? 'विपरीत समान' : 'Opposite'}
           </button>
           <button
             onClick={() => applyPresetColoring('all_distinct')}
-            className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-purple-950/80 text-purple-300 border border-purple-800/60 hover:bg-purple-900/80 transition-all"
+            className="px-2 py-1 rounded text-[11px] font-medium bg-purple-950/80 text-purple-300 border border-purple-800/60 hover:bg-purple-900/80 transition-all shrink-0"
           >
-            {language === 'hi' ? '6 अलग रंग (6 Colors)' : '6 Colors'}
+            {language === 'hi' ? '6 अलग रंग' : '6 Colors'}
           </button>
         </div>
       </div>
 
       {/* Main Studio Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left Column: 3D Canvas + Slicing Controls */}
-        <div className="lg:col-span-7 flex flex-col space-y-4">
-          <div className="h-[440px] sm:h-[500px]">
+        <div className="lg:col-span-7 flex flex-col space-y-3">
+          <div className={`${focusMode ? 'h-[62vh] sm:h-[580px] min-h-[420px]' : 'h-[50vh] sm:h-[480px] min-h-[360px]'} transition-all`}>
             <ThreeCanvas
               mode="cube_cutting"
               cubeCutParams={params}

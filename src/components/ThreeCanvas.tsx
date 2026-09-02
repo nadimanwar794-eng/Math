@@ -35,13 +35,14 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
   const hoveredMeshRef = useRef<THREE.Mesh | null>(null);
 
   const [isRotating, setIsRotating] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(true);
   const isRotatingRef = useRef(false);
   isRotatingRef.current = isRotating;
 
-  // Track mouse drag for orbit
+  // Track mouse drag for orbit - Default closer radius (11.5) for bigger diagram view
   const isDraggingRef = useRef(false);
   const previousMousePositionRef = useRef({ x: 0, y: 0 });
-  const cameraSphericalRef = useRef({ radius: 14, theta: Math.PI / 4, phi: Math.PI / 3 });
+  const cameraSphericalRef = useRef({ radius: 11.5, theta: Math.PI / 4, phi: Math.PI / 3 });
 
   // Initialize Scene, Camera, Renderer
   useEffect(() => {
@@ -285,79 +286,98 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       <div ref={mountRef} className="w-full h-full flex-1 cursor-grab active:cursor-grabbing" />
 
       {/* Floating Control Overlay */}
-      <div className="absolute top-3 left-3 flex flex-wrap items-center gap-2 pointer-events-auto">
-        <button
-          id="btn-toggle-rotation"
-          onClick={() => setIsRotating(!isRotating)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-md border transition-all flex items-center gap-1.5 ${
-            isRotating
-              ? 'bg-indigo-600/80 border-indigo-400 text-white shadow-lg shadow-indigo-500/20'
-              : 'bg-slate-900/80 border-slate-700 text-slate-300 hover:bg-slate-800'
-          }`}
-        >
-          <span className={`inline-block w-2 h-2 rounded-full ${isRotating ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-          {isRotating ? (language === 'hi' ? 'घूर्णन रोकें' : 'Stop Auto-Rotate') : (language === 'hi' ? '3D घूर्णन शुरू' : 'Auto Rotate')}
-        </button>
+      <div className="absolute top-2 left-2 flex flex-wrap items-center gap-1.5 pointer-events-auto z-10">
+        {showToolbar ? (
+          <>
+            <button
+              id="btn-toggle-rotation"
+              onClick={() => setIsRotating(!isRotating)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium backdrop-blur-md border transition-all flex items-center gap-1.5 ${
+                isRotating
+                  ? 'bg-indigo-600/90 border-indigo-400 text-white shadow-md'
+                  : 'bg-slate-900/80 border-slate-700 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${isRotating ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+              <span>{isRotating ? (language === 'hi' ? 'रोकें' : 'Stop') : (language === 'hi' ? '3D घूर्णन' : 'Rotate')}</span>
+            </button>
 
-        <button
-          id="btn-reset-camera"
-          onClick={() => {
-            if (cameraRef.current) {
-              cameraSphericalRef.current = { radius: 14, theta: Math.PI / 4, phi: Math.PI / 3 };
-              const { radius, theta, phi } = cameraSphericalRef.current;
-              cameraRef.current.position.x = radius * Math.sin(phi) * Math.sin(theta);
-              cameraRef.current.position.y = radius * Math.cos(phi);
-              cameraRef.current.position.z = radius * Math.sin(phi) * Math.cos(theta);
-              cameraRef.current.lookAt(0, 0, 0);
-              if (mainGroupRef.current) {
-                mainGroupRef.current.rotation.set(0, 0, 0);
-              }
-            }
-          }}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-300 backdrop-blur-md transition-all"
-        >
-          {language === 'hi' ? 'कैमरा रीसेट' : 'Reset View'}
-        </button>
+            <button
+              id="btn-reset-camera"
+              onClick={() => {
+                if (cameraRef.current) {
+                  cameraSphericalRef.current = { radius: 11.5, theta: Math.PI / 4, phi: Math.PI / 3 };
+                  const { radius, theta, phi } = cameraSphericalRef.current;
+                  cameraRef.current.position.x = radius * Math.sin(phi) * Math.sin(theta);
+                  cameraRef.current.position.y = radius * Math.cos(phi);
+                  cameraRef.current.position.z = radius * Math.sin(phi) * Math.cos(theta);
+                  cameraRef.current.lookAt(0, 0, 0);
+                  if (mainGroupRef.current) {
+                    mainGroupRef.current.rotation.set(0, 0, 0);
+                  }
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-300 backdrop-blur-md transition-all"
+            >
+              {language === 'hi' ? 'रीसेट' : 'Reset'}
+            </button>
 
-        {/* Quick Zoom Buttons */}
-        <div className="flex items-center rounded-lg bg-slate-900/80 border border-slate-700 backdrop-blur-md overflow-hidden">
+            {/* Quick Zoom Buttons */}
+            <div className="flex items-center rounded-lg bg-slate-900/80 border border-slate-700 backdrop-blur-md overflow-hidden">
+              <button
+                title="Zoom In"
+                onClick={() => {
+                  cameraSphericalRef.current.radius = Math.max(4, cameraSphericalRef.current.radius - 2);
+                  if (cameraRef.current) {
+                    const { radius, theta, phi } = cameraSphericalRef.current;
+                    cameraRef.current.position.x = radius * Math.sin(phi) * Math.sin(theta);
+                    cameraRef.current.position.y = radius * Math.cos(phi);
+                    cameraRef.current.position.z = radius * Math.sin(phi) * Math.cos(theta);
+                    cameraRef.current.lookAt(0, 0, 0);
+                  }
+                }}
+                className="px-2 py-0.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 border-r border-slate-700 font-bold"
+              >
+                +
+              </button>
+              <button
+                title="Zoom Out"
+                onClick={() => {
+                  cameraSphericalRef.current.radius = Math.min(30, cameraSphericalRef.current.radius + 2);
+                  if (cameraRef.current) {
+                    const { radius, theta, phi } = cameraSphericalRef.current;
+                    cameraRef.current.position.x = radius * Math.sin(phi) * Math.sin(theta);
+                    cameraRef.current.position.y = radius * Math.cos(phi);
+                    cameraRef.current.position.z = radius * Math.sin(phi) * Math.cos(theta);
+                    cameraRef.current.lookAt(0, 0, 0);
+                  }
+                }}
+                className="px-2 py-0.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 font-bold"
+              >
+                -
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowToolbar(false)}
+              className="px-1.5 py-1 rounded-lg text-[10px] text-slate-500 hover:text-slate-300 bg-slate-900/60 border border-slate-800"
+              title={language === 'hi' ? 'कंट्रोल छिपाएं' : 'Hide Controls'}
+            >
+              ✕
+            </button>
+          </>
+        ) : (
           <button
-            title="Zoom In"
-            onClick={() => {
-              cameraSphericalRef.current.radius = Math.max(4, cameraSphericalRef.current.radius - 2);
-              if (cameraRef.current) {
-                const { radius, theta, phi } = cameraSphericalRef.current;
-                cameraRef.current.position.x = radius * Math.sin(phi) * Math.sin(theta);
-                cameraRef.current.position.y = radius * Math.cos(phi);
-                cameraRef.current.position.z = radius * Math.sin(phi) * Math.cos(theta);
-                cameraRef.current.lookAt(0, 0, 0);
-              }
-            }}
-            className="px-2.5 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 border-r border-slate-700 font-bold"
+            onClick={() => setShowToolbar(true)}
+            className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-400 hover:text-white bg-slate-900/80 border border-slate-700 backdrop-blur-md transition-all shadow-md"
           >
-            +
+            ⚙️ {language === 'hi' ? '3D कंट्रोल' : '3D Controls'}
           </button>
-          <button
-            title="Zoom Out"
-            onClick={() => {
-              cameraSphericalRef.current.radius = Math.min(35, cameraSphericalRef.current.radius + 2);
-              if (cameraRef.current) {
-                const { radius, theta, phi } = cameraSphericalRef.current;
-                cameraRef.current.position.x = radius * Math.sin(phi) * Math.sin(theta);
-                cameraRef.current.position.y = radius * Math.cos(phi);
-                cameraRef.current.position.z = radius * Math.sin(phi) * Math.cos(theta);
-                cameraRef.current.lookAt(0, 0, 0);
-              }
-            }}
-            className="px-2.5 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 font-bold"
-          >
-            -
-          </button>
-        </div>
+        )}
 
         {mode === 'shape' && (shapeParams?.explodedParts || 0) > 0 && (
-          <span className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 backdrop-blur-md animate-pulse">
-            {language === 'hi' ? '⚡ अलग-अलग भाग दृश्य (Exploded 3D)' : '⚡ Exploded Parts 3D'}
+          <span className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 backdrop-blur-md animate-pulse">
+            ⚡ {language === 'hi' ? 'अलग भाग' : 'Exploded'}
           </span>
         )}
       </div>
