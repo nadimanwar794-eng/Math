@@ -1,0 +1,6 @@
+{
+  "name": "3D & 2D Math Geometry, Cube Cutting & Reasoning Studio",
+  "description": "Interactive 3D & 2D geometry visualizer (Belan, Sanku, Ghan, Ghanabh, Gola, Aayat, Varg, Samchaturbhuj, Samlamb), cube/cuboid slicing & coloring reasoning lab, dice rotation & net analyzer, and 100% offline step-by-step math solver in Hindi and English.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
