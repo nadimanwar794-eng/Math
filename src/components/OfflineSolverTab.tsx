@@ -8,6 +8,7 @@ import {
   UNIVERSAL_FORMULA_MODULES,
   UniversalFormulaModule,
 } from '../utils/universalVariableSolvers';
+import { TextbookWhitePage } from './TextbookWhitePage';
 import {
   Calculator,
   Search,
@@ -457,6 +458,17 @@ export const OfflineSolverTab: React.FC<OfflineSolverTabProps> = ({ language }) 
             <SolutionDisplayCard
               solution={universalSolution}
               language={language}
+              questionText={
+                language === 'hi'
+                  ? `${currentModule.nameHi} - ${Object.entries(variableInputs)
+                      .filter(([_, v]) => String(v || '').trim() !== '')
+                      .map(([k, v]) => `${currentModule.variables.find((x) => x.key === k)?.labelHi || k} = ${v}`)
+                      .join(', ')}`
+                  : `${currentModule.nameEn} - ${Object.entries(variableInputs)
+                      .filter(([_, v]) => String(v || '').trim() !== '')
+                      .map(([k, v]) => `${currentModule.variables.find((x) => x.key === k)?.labelEn || k} = ${v}`)
+                      .join(', ')}`
+              }
               onCopy={() => copySolutionToClipboard(universalSolution)}
               copied={copied}
             />
@@ -542,6 +554,7 @@ export const OfflineSolverTab: React.FC<OfflineSolverTabProps> = ({ language }) 
               <SolutionDisplayCard
                 solution={textSolution}
                 language={language}
+                questionText={query}
                 onCopy={() => copySolutionToClipboard(textSolution)}
                 copied={copied}
               />
@@ -617,112 +630,167 @@ export const OfflineSolverTab: React.FC<OfflineSolverTabProps> = ({ language }) 
 interface SolutionDisplayCardProps {
   solution: OfflineSolution;
   language: 'hi' | 'en';
+  questionText?: string;
   onCopy: () => void;
   copied: boolean;
 }
 
-const SolutionDisplayCard: React.FC<SolutionDisplayCardProps> = ({ solution, language, onCopy, copied }) => {
+const SolutionDisplayCard: React.FC<SolutionDisplayCardProps> = ({
+  solution,
+  language,
+  questionText,
+  onCopy,
+  copied,
+}) => {
+  const [viewFormat, setViewFormat] = useState<'white_textbook' | 'dark_card'>('white_textbook');
+
   return (
-    <div className="bg-slate-900/95 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-2xl space-y-5">
-      {/* Solution Header */}
-      <div className="border-b border-slate-800 pb-3 flex items-start justify-between gap-3">
-        <div>
-          <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            {solution.category}
+    <div className="space-y-4">
+      {/* View Format Selector Ribbon */}
+      <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded-2xl p-2 shadow-lg">
+        <div className="flex items-center gap-2 pl-2">
+          <BookOpen className="w-4 h-4 text-indigo-400" />
+          <span className="text-xs font-bold text-white">
+            {language === 'hi' ? 'हल प्रस्तुति शैली (Solution Presentation):' : 'Presentation Style:'}
           </span>
-          <h2 className="text-base md:text-lg font-bold text-white mt-1.5 leading-snug">
-            {language === 'hi' ? solution.titleHi : solution.titleEn}
-          </h2>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
           <button
-            onClick={onCopy}
-            className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg transition-all shadow-sm"
-            title="Copy Solution"
+            onClick={() => setViewFormat('white_textbook')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              viewFormat === 'white_textbook'
+                ? 'bg-white text-slate-900 font-bold shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
-            <span>{copied ? (language === 'hi' ? 'कॉपी हो गया' : 'Copied') : (language === 'hi' ? 'हल कॉपी करें' : 'Copy')}</span>
+            <span>📖</span>
+            <span>{language === 'hi' ? 'श्वेत पुस्तक पृष्ठ (White Book Page)' : 'White Textbook Page'}</span>
+          </button>
+
+          <button
+            onClick={() => setViewFormat('dark_card')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              viewFormat === 'dark_card'
+                ? 'bg-indigo-600 text-white font-bold shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>🌙</span>
+            <span>{language === 'hi' ? 'डार्क कार्ड (Dark Mode)' : 'Dark Card'}</span>
           </button>
         </div>
       </div>
 
-      {/* Given Data Block (दिया गया है) */}
-      <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-indigo-400" />
-          <span>{language === 'hi' ? 'दिया गया है (Given Data):' : 'Given Data:'}</span>
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {solution.givenData.map((d, i) => (
-            <div key={i} className="bg-slate-900 p-2 rounded-lg border border-slate-800 text-xs">
-              <div className="text-slate-400 text-[11px]">{language === 'hi' ? d.labelHi : d.labelEn}</div>
-              <div className="font-mono font-bold text-indigo-300 mt-0.5">{d.value}</div>
-            </div>
-          ))}
-        </div>
-        {solution.toFindHi && (
-          <div className="mt-2.5 pt-2 border-t border-slate-800/60 text-xs text-amber-300 flex items-center gap-1.5">
-            <span className="font-bold">{language === 'hi' ? 'ज्ञात करना है (To Find):' : 'To Find:'}</span>
-            <span>{language === 'hi' ? solution.toFindHi : solution.toFindEn}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Step-by-Step Textbook Derivation (चरणबद्ध हल) */}
-      <div className="space-y-2.5">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-emerald-400" />
-          <span>{language === 'hi' ? 'किताब की तरह चरणबद्ध हल (Step-by-Step Derivation):' : 'Step-by-Step Textbook Solution:'}</span>
-        </h3>
-
-        <div className="space-y-2">
-          {(language === 'hi' ? solution.stepsHi : solution.stepsEn).map((step, idx) => (
-            <div
-              key={idx}
-              className="p-3 rounded-xl bg-slate-950/90 border border-slate-800/80 font-mono text-xs md:text-sm text-slate-200 leading-relaxed"
-            >
-              {step}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Highlighted Final Answer Box (अंतिम उत्तर) */}
-      <div className="bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-slate-950 border-2 border-emerald-500/40 rounded-2xl p-4 shadow-xl">
-        <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-          <CheckCircle2 className="w-4 h-4" />
-          <span>{language === 'hi' ? '★ अंतिम उत्तर (Final Answer)' : '★ Final Answer'}</span>
-        </div>
-        <div className="text-sm md:text-base font-bold font-mono text-white leading-relaxed">
-          {language === 'hi' ? solution.finalAnswerHi : solution.finalAnswerEn}
-        </div>
-      </div>
-
-      {/* Formulas Used & Pro-Tips */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-        <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase mb-1.5">
-            {language === 'hi' ? 'प्रयुक्त सूत्र (Formulas Used)' : 'Formulas Used'}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {solution.formulasUsed.map((f, i) => (
-              <span key={i} className="text-xs font-mono font-bold text-indigo-300 bg-indigo-950/60 border border-indigo-800/50 px-2 py-0.5 rounded">
-                {f}
+      {viewFormat === 'white_textbook' ? (
+        <TextbookWhitePage
+          solution={solution}
+          language={language}
+          questionText={questionText}
+        />
+      ) : (
+        <div className="bg-slate-900/95 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-2xl space-y-5">
+          {/* Solution Header */}
+          <div className="border-b border-slate-800 pb-3 flex items-start justify-between gap-3">
+            <div>
+              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                {solution.category}
               </span>
-            ))}
-          </div>
-        </div>
-
-        {solution.tipsHi && (
-          <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-start gap-2">
-            <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-amber-200/90 leading-relaxed">
-              <span className="font-bold">{language === 'hi' ? 'किताब का नियम: ' : 'Rule: '}</span>
-              {language === 'hi' ? solution.tipsHi : solution.tipsEn}
+              <h2 className="text-base md:text-lg font-bold text-white mt-1.5 leading-snug">
+                {language === 'hi' ? solution.titleHi : solution.titleEn}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={onCopy}
+                className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                title="Copy Solution"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                <span>{copied ? (language === 'hi' ? 'कॉपी हो गया' : 'Copied') : (language === 'hi' ? 'हल कॉपी करें' : 'Copy')}</span>
+              </button>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Given Data Block (दिया गया है) */}
+          <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-indigo-400" />
+              <span>{language === 'hi' ? 'दिया गया है (Given Data):' : 'Given Data:'}</span>
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {solution.givenData.map((d, i) => (
+                <div key={i} className="bg-slate-900 p-2 rounded-lg border border-slate-800 text-xs">
+                  <div className="text-slate-400 text-[11px]">{language === 'hi' ? d.labelHi : d.labelEn}</div>
+                  <div className="font-mono font-bold text-indigo-300 mt-0.5">{d.value}</div>
+                </div>
+              ))}
+            </div>
+            {solution.toFindHi && (
+              <div className="mt-2.5 pt-2 border-t border-slate-800/60 text-xs text-amber-300 flex items-center gap-1.5">
+                <span className="font-bold">{language === 'hi' ? 'ज्ञात करना है (To Find):' : 'To Find:'}</span>
+                <span>{language === 'hi' ? solution.toFindHi : solution.toFindEn}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Step-by-Step Textbook Derivation (चरणबद्ध हल) */}
+          <div className="space-y-2.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-emerald-400" />
+              <span>{language === 'hi' ? 'किताब की तरह चरणबद्ध हल (Step-by-Step Derivation):' : 'Step-by-Step Textbook Solution:'}</span>
+            </h3>
+
+            <div className="space-y-2">
+              {(language === 'hi' ? solution.stepsHi : solution.stepsEn).map((step, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl bg-slate-950/90 border border-slate-800/80 font-mono text-xs md:text-sm text-slate-200 leading-relaxed"
+                >
+                  {step}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Highlighted Final Answer Box (अंतिम उत्तर) */}
+          <div className="bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-slate-950 border-2 border-emerald-500/40 rounded-2xl p-4 shadow-xl">
+            <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{language === 'hi' ? '★ अंतिम उत्तर (Final Answer)' : '★ Final Answer'}</span>
+            </div>
+            <div className="text-sm md:text-base font-bold font-mono text-white leading-relaxed">
+              {language === 'hi' ? solution.finalAnswerHi : solution.finalAnswerEn}
+            </div>
+          </div>
+
+          {/* Formulas Used & Pro-Tips */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <div className="text-[11px] font-semibold text-slate-400 uppercase mb-1.5">
+                {language === 'hi' ? 'प्रयुक्त सूत्र (Formulas Used)' : 'Formulas Used'}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {solution.formulasUsed.map((f, i) => (
+                  <span key={i} className="text-xs font-mono font-bold text-indigo-300 bg-indigo-950/60 border border-indigo-800/50 px-2 py-0.5 rounded">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {solution.tipsHi && (
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-start gap-2">
+                <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-200/90 leading-relaxed">
+                  <span className="font-bold">{language === 'hi' ? 'किताब का नियम: ' : 'Rule: '}</span>
+                  {language === 'hi' ? solution.tipsHi : solution.tipsEn}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

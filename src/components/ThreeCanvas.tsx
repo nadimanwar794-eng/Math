@@ -1,17 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { CubeCutParams, MiniCubeData, ShapeParams } from '../types';
+import { CubeCutParams, MiniCubeData, ShapeParams, Dice3DParams, SingleDiceView } from '../types';
 import { generateMiniCubes } from '../utils/mathFormulas';
 
 interface ThreeCanvasProps {
   mode: 'shape' | 'cube_cutting' | 'dice';
   shapeParams?: ShapeParams;
   cubeCutParams?: CubeCutParams;
-  diceParams?: {
-    diceValues: [number, number, number, number, number, number]; // [top, bottom, front, back, left, right]
-    isUnfolded: boolean;
-    unfoldProgress: number; // 0 to 1
-  };
+  diceParams?: Dice3DParams;
   selectedCube?: MiniCubeData | null;
   onSelectMiniCube?: (cube: MiniCubeData | null) => void;
   language?: 'hi' | 'en';
@@ -1085,151 +1081,414 @@ function renderCubeCutting(
 }
 
 // ============================================================================
-// Dice Scene Renderer (3D Dice with Pips/Dots, Fold / Unfold Net Mode)
+// Dice Scene Renderer (3D Multi-Dice up to 4, Edge-Hinged Step-by-Step 3D Unfold)
 // ============================================================================
-function renderDiceScene(
-  group: THREE.Group,
-  params: { diceValues: [number, number, number, number, number, number]; isUnfolded: boolean; unfoldProgress: number }
-) {
-  const { diceValues, isUnfolded, unfoldProgress } = params;
-  const [topVal, bottomVal, frontVal, backVal, leftVal, rightVal] = diceValues;
+function renderDiceScene(group: THREE.Group, params: Dice3DParams) {
+  const {
+    diceValues = [1, 6, 2, 5, 3, 4],
+    diceList,
+    activeDiceIndex = 0,
+    isUnfolded = false,
+    unfoldProgress = 0,
+    unfoldStep = 0,
+    stepByStepMode = false,
+  } = params;
 
-  // Create canvas texture with dice pips or numbers
-  const createDiceTexture = (value: number, bgColor = '#f8fafc', dotColor = '#dc2626') => {
+  // Create high-res canvas texture with dice pips and numbers
+  const createDiceTexture = (
+    value: number | string,
+    bgColor = '#0f172a',
+    borderColor = '#4f46e5',
+    accentColor = '#f8fafc',
+    label?: string
+  ) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
+    canvas.width = 512;
+    canvas.height = 512;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new THREE.CanvasTexture(canvas);
 
-    // Background
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, 256, 256);
+    // Background Gradient
+    const grad = ctx.createLinearGradient(0, 0, 512, 512);
+    grad.addColorStop(0, bgColor);
+    grad.addColorStop(1, '#020617');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 512, 512);
 
-    // Border
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 12;
-    ctx.strokeRect(6, 6, 244, 244);
+    // Outer Border & Corner Accents
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 18;
+    ctx.strokeRect(12, 12, 488, 488);
 
-    // Draw Dots / Pips
-    ctx.fillStyle = value === 1 ? '#ef4444' : dotColor; // 1 is traditionally red
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(24, 24, 464, 464);
 
-    const drawDot = (x: number, y: number, r = 22) => {
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    };
+    // Face Name Label on top (if provided)
+    if (label) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, 256, 56);
+    }
 
-    const c = 128;
-    const l = 64;
-    const r = 192;
-    const t = 64;
-    const b = 192;
+    const valNum = typeof value === 'number' ? value : parseInt(String(value), 10);
 
-    if (value === 1) {
-      drawDot(c, c, 32);
-    } else if (value === 2) {
-      drawDot(l, t);
-      drawDot(r, b);
-    } else if (value === 3) {
-      drawDot(l, t);
-      drawDot(c, c);
-      drawDot(r, b);
-    } else if (value === 4) {
-      drawDot(l, t);
-      drawDot(r, t);
-      drawDot(l, b);
-      drawDot(r, b);
-    } else if (value === 5) {
-      drawDot(l, t);
-      drawDot(r, t);
-      drawDot(c, c);
-      drawDot(l, b);
-      drawDot(r, b);
-    } else if (value === 6) {
-      drawDot(l, t);
-      drawDot(r, t);
-      drawDot(l, c);
-      drawDot(r, c);
-      drawDot(l, b);
-      drawDot(r, b);
-    } else {
-      // Number text if > 6 or custom
-      ctx.fillStyle = '#1e293b';
-      ctx.font = 'bold 110px sans-serif';
+    // If it's 1-6, draw realistic casino/reasoning pips + bold number
+    if (!isNaN(valNum) && valNum >= 1 && valNum <= 6) {
+      const dotColor = valNum === 1 ? '#ef4444' : valNum === 6 ? '#38bdf8' : '#fbbf24';
+      ctx.fillStyle = dotColor;
+
+      const drawPip = (x: number, y: number, r = 36) => {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Inner pip highlight
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = dotColor;
+      };
+
+      const c = 256;
+      const l = 120;
+      const r = 392;
+      const t = 120;
+      const b = 392;
+
+      if (valNum === 1) {
+        drawPip(c, c, 52);
+      } else if (valNum === 2) {
+        drawPip(l, t);
+        drawPip(r, b);
+      } else if (valNum === 3) {
+        drawPip(l, t);
+        drawPip(c, c);
+        drawPip(r, b);
+      } else if (valNum === 4) {
+        drawPip(l, t);
+        drawPip(r, t);
+        drawPip(l, b);
+        drawPip(r, b);
+      } else if (valNum === 5) {
+        drawPip(l, t);
+        drawPip(r, t);
+        drawPip(c, c);
+        drawPip(l, b);
+        drawPip(r, b);
+      } else if (valNum === 6) {
+        drawPip(l, t);
+        drawPip(r, t);
+        drawPip(l, c);
+        drawPip(r, c);
+        drawPip(l, b);
+        drawPip(r, b);
+      }
+
+      // Large Watermark Number
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+      ctx.font = 'bold 96px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(String(value), c, c);
+      ctx.fillText(String(valNum), 256, 256);
+    } else {
+      // Large Custom Text / Symbol / Letter (e.g. A, B, C or symbols)
+      ctx.fillStyle = accentColor;
+      ctx.font = 'bold 180px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(value), 256, 256);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 4;
     return texture;
   };
 
-  if (!isUnfolded || unfoldProgress === 0) {
-    // Standard 3D Assembled Dice Box
+  // Helper to create 3D text badge sprite for dice label (e.g., "पासा 1 (Position A)")
+  const createLabelSprite = (text: string, subText: string, color = '#38bdf8') => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 160;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.Group();
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.roundRect(10, 10, 492, 140, 24);
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 44px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, 256, 65);
+
+    ctx.fillStyle = color;
+    ctx.font = 'bold 30px "JetBrains Mono", monospace';
+    ctx.fillText(subText, 256, 118);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.scale.set(3.2, 1.0, 1);
+    return sprite;
+  };
+
+  // --------------------------------------------------------------------------
+  // SCENARIO 1: Open Net 3D Step-by-Step Folding / Unfolding
+  // --------------------------------------------------------------------------
+  if (isUnfolded || unfoldProgress > 0 || unfoldStep > 0) {
+    const [topVal, bottomVal, frontVal, backVal, leftVal, rightVal] = diceValues;
+    const s = 2.4; // Face Plate size
+
+    // Compute folding angles for each face based on progress or step
+    // An angle of 0 is flat 2D net.
+    // Closed angles: Top: -PI/2, Bottom: +PI/2, Left: +PI/2, Right: -PI/2, Back: -PI/2 (relative to right face)
+    let topAngle = 0;
+    let bottomAngle = 0;
+    let leftAngle = 0;
+    let rightAngle = 0;
+    let backAngle = 0;
+
+    if (stepByStepMode && unfoldStep !== undefined) {
+      // Step 0: All closed
+      // Step 1: Top opens
+      // Step 2: Bottom opens
+      // Step 3: Left opens
+      // Step 4: Right opens
+      // Step 5: Back opens (Full Flat Net)
+      topAngle = unfoldStep >= 1 ? 0 : -Math.PI / 2;
+      bottomAngle = unfoldStep >= 2 ? 0 : Math.PI / 2;
+      leftAngle = unfoldStep >= 3 ? 0 : Math.PI / 2;
+      rightAngle = unfoldStep >= 4 ? 0 : -Math.PI / 2;
+      backAngle = unfoldStep >= 5 ? 0 : -Math.PI / 2;
+    } else {
+      // Sequential Smooth Continuous Progress (0 to 1)
+      const p = unfoldProgress;
+      // Phase 1: Top (0.0 to 0.2)
+      const pTop = Math.min(1, Math.max(0, p / 0.2));
+      topAngle = (1 - pTop) * (-Math.PI / 2);
+
+      // Phase 2: Bottom (0.2 to 0.4)
+      const pBottom = Math.min(1, Math.max(0, (p - 0.2) / 0.2));
+      bottomAngle = (1 - pBottom) * (Math.PI / 2);
+
+      // Phase 3: Left (0.4 to 0.6)
+      const pLeft = Math.min(1, Math.max(0, (p - 0.4) / 0.2));
+      leftAngle = (1 - pLeft) * (Math.PI / 2);
+
+      // Phase 4: Right (0.6 to 0.8)
+      const pRight = Math.min(1, Math.max(0, (p - 0.6) / 0.2));
+      rightAngle = (1 - pRight) * (-Math.PI / 2);
+
+      // Phase 5: Back (0.8 to 1.0)
+      const pBack = Math.min(1, Math.max(0, (p - 0.8) / 0.2));
+      backAngle = (1 - pBack) * (-Math.PI / 2);
+    }
+
+    const createFaceBox = (
+      val: number,
+      bgColor: string,
+      borderColor: string,
+      labelHi: string
+    ) => {
+      const faceMat = new THREE.MeshStandardMaterial({
+        map: createDiceTexture(val, bgColor, borderColor, '#ffffff', labelHi),
+        roughness: 0.25,
+        metalness: 0.15,
+      });
+      const sideMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+      const backMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 });
+
+      // BoxGeometry: [Right, Left, Top, Bottom, Front (+Z), Back (-Z)]
+      const materials = [sideMat, sideMat, sideMat, sideMat, faceMat, backMat];
+      const geom = new THREE.BoxGeometry(s * 0.96, s * 0.96, 0.08);
+      const mesh = new THREE.Mesh(geom, materials);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    };
+
+    // 1. Center Anchor Face: FRONT FACE (fixed at origin)
+    const frontFace = createFaceBox(frontVal, '#1e3a8a', '#3b82f6', 'सामने (Front)');
+    frontFace.position.set(0, 0, 0);
+    group.add(frontFace);
+
+    // 2. TOP FACE HINGE (attached to top edge of Front Face at y = +s/2)
+    const topHinge = new THREE.Group();
+    topHinge.position.set(0, s / 2, 0);
+    const topFace = createFaceBox(topVal, '#312e81', '#6366f1', 'ऊपर (Top)');
+    topFace.position.set(0, s / 2, 0);
+    topHinge.add(topFace);
+    topHinge.rotation.x = topAngle;
+    group.add(topHinge);
+
+    // 3. BOTTOM FACE HINGE (attached to bottom edge of Front Face at y = -s/2)
+    const bottomHinge = new THREE.Group();
+    bottomHinge.position.set(0, -s / 2, 0);
+    const bottomFace = createFaceBox(bottomVal, '#881337', '#f43f5e', 'नीचे (Bottom)');
+    bottomFace.position.set(0, -s / 2, 0);
+    bottomHinge.add(bottomFace);
+    bottomHinge.rotation.x = bottomAngle;
+    group.add(bottomHinge);
+
+    // 4. LEFT FACE HINGE (attached to left edge of Front Face at x = -s/2)
+    const leftHinge = new THREE.Group();
+    leftHinge.position.set(-s / 2, 0, 0);
+    const leftFace = createFaceBox(leftVal, '#064e3b', '#10b981', 'बाएं (Left)');
+    leftFace.position.set(-s / 2, 0, 0);
+    leftHinge.add(leftFace);
+    leftHinge.rotation.y = leftAngle;
+    group.add(leftHinge);
+
+    // 5. RIGHT FACE HINGE (attached to right edge of Front Face at x = +s/2)
+    const rightHinge = new THREE.Group();
+    rightHinge.position.set(s / 2, 0, 0);
+    const rightFace = createFaceBox(rightVal, '#78350f', '#f59e0b', 'दाएं (Right)');
+    rightFace.position.set(s / 2, 0, 0);
+    rightHinge.add(rightFace);
+
+    // 6. BACK FACE HINGE (attached hierarchically to the outer edge of Right Face at x = +s)
+    const backHinge = new THREE.Group();
+    backHinge.position.set(s, 0, 0);
+    const backFace = createFaceBox(backVal, '#581c87', '#a855f7', 'पीछे (Back)');
+    backFace.position.set(s / 2, 0, 0);
+    backHinge.add(backFace);
+    backHinge.rotation.y = backAngle;
+
+    rightHinge.add(backHinge);
+    rightHinge.rotation.y = rightAngle;
+    group.add(rightHinge);
+
+    return;
+  }
+
+  // --------------------------------------------------------------------------
+  // SCENARIO 2: Multi-Dice 3D Mode (1, 2, 3, or 4 Dice positions)
+  // --------------------------------------------------------------------------
+  const diceArray: SingleDiceView[] =
+    diceList && diceList.length > 0
+      ? diceList
+      : [
+          {
+            id: 1,
+            top: diceValues[0],
+            bottom: diceValues[1],
+            front: diceValues[2],
+            back: diceValues[3],
+            left: diceValues[4],
+            right: diceValues[5],
+            labelHi: 'पासा 1',
+            labelEn: 'Dice 1',
+          },
+        ];
+
+  const count = Math.min(4, Math.max(1, diceArray.length));
+  const diceSize = count === 1 ? 3.4 : count === 2 ? 3.0 : 2.5;
+
+  // Compute 3D Positions for up to 4 Dice
+  const positions: [number, number, number][] = [];
+  if (count === 1) {
+    positions.push([0, 0, 0]);
+  } else if (count === 2) {
+    positions.push([-3.2, 0, 0]);
+    positions.push([3.2, 0, 0]);
+  } else if (count === 3) {
+    positions.push([-5.2, 0, 0]);
+    positions.push([0, 0, 0]);
+    positions.push([5.2, 0, 0]);
+  } else {
+    // 4 Dice Layout: 2x2 grid or horizontal line
+    positions.push([-3.4, 2.0, 0]);
+    positions.push([3.4, 2.0, 0]);
+    positions.push([-3.4, -2.0, 0]);
+    positions.push([3.4, -2.0, 0]);
+  }
+
+  diceArray.slice(0, count).forEach((dice, idx) => {
+    const [posX, posY, posZ] = positions[idx];
+    const diceGroup = new THREE.Group();
+    diceGroup.position.set(posX, posY, posZ);
+
+    // Materials for 6 faces:
+    // [0: Right (+X), 1: Left (-X), 2: Top (+Y), 3: Bottom (-Y), 4: Front (+Z), 5: Back (-Z)]
+    const rightV = dice.right ?? (diceValues ? diceValues[5] : 4);
+    const leftV = dice.left ?? (diceValues ? diceValues[4] : 3);
+    const topV = dice.top ?? (diceValues ? diceValues[0] : 1);
+    const bottomV = dice.bottom ?? (diceValues ? diceValues[1] : 6);
+    const frontV = dice.front ?? (diceValues ? diceValues[2] : 2);
+    const backV = dice.back ?? (diceValues ? diceValues[3] : 5);
+
     const materials = [
-      new THREE.MeshStandardMaterial({ map: createDiceTexture(rightVal), roughness: 0.2 }),
-      new THREE.MeshStandardMaterial({ map: createDiceTexture(leftVal), roughness: 0.2 }),
-      new THREE.MeshStandardMaterial({ map: createDiceTexture(topVal), roughness: 0.2 }),
-      new THREE.MeshStandardMaterial({ map: createDiceTexture(bottomVal), roughness: 0.2 }),
-      new THREE.MeshStandardMaterial({ map: createDiceTexture(frontVal), roughness: 0.2 }),
-      new THREE.MeshStandardMaterial({ map: createDiceTexture(backVal), roughness: 0.2 }),
+      new THREE.MeshStandardMaterial({
+        map: createDiceTexture(rightV, '#78350f', '#f59e0b', '#fbbf24', 'Right'),
+        roughness: 0.2,
+      }),
+      new THREE.MeshStandardMaterial({
+        map: createDiceTexture(leftV, '#064e3b', '#10b981', '#34d399', 'Left'),
+        roughness: 0.2,
+      }),
+      new THREE.MeshStandardMaterial({
+        map: createDiceTexture(topV, '#312e81', '#6366f1', '#818cf8', 'Top'),
+        roughness: 0.2,
+      }),
+      new THREE.MeshStandardMaterial({
+        map: createDiceTexture(bottomV, '#881337', '#f43f5e', '#fb7185', 'Bottom'),
+        roughness: 0.2,
+      }),
+      new THREE.MeshStandardMaterial({
+        map: createDiceTexture(frontV, '#1e3a8a', '#3b82f6', '#60a5fa', 'Front'),
+        roughness: 0.2,
+      }),
+      new THREE.MeshStandardMaterial({
+        map: createDiceTexture(backV, '#581c87', '#a855f7', '#c084fc', 'Back'),
+        roughness: 0.2,
+      }),
     ];
 
-    const geom = new THREE.BoxGeometry(3.5, 3.5, 3.5);
+    const geom = new THREE.BoxGeometry(diceSize, diceSize, diceSize);
     const mesh = new THREE.Mesh(geom, materials);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    group.add(mesh);
-  } else {
-    // Unfolded Open Net in 3D cross pattern
-    // Center face is Front, Top attached above, Bottom attached below, Left attached left, Right attached right, Back attached to Right
-    const size = 2.2;
-    const progress = unfoldProgress; // 0 to 1
+    diceGroup.add(mesh);
 
-    const createFacePlane = (val: number, label: string) => {
-      const geom = new THREE.PlaneGeometry(size, size);
-      const mat = new THREE.MeshStandardMaterial({
-        map: createDiceTexture(val),
-        side: THREE.DoubleSide,
-        roughness: 0.2,
-      });
-      const plane = new THREE.Mesh(geom, mat);
-      return plane;
-    };
+    // Sleek Edge Lines
+    const edgesGeom = new THREE.EdgesGeometry(geom);
+    const edgesMat = new THREE.LineBasicMaterial({
+      color: idx === activeDiceIndex ? 0x38bdf8 : 0x475569,
+      linewidth: 2,
+    });
+    const edgeLines = new THREE.LineSegments(edgesGeom, edgesMat);
+    diceGroup.add(edgeLines);
 
-    // Center Face (Front)
-    const centerMesh = createFacePlane(frontVal, 'Front');
-    group.add(centerMesh);
+    // Glowing Pedestal Ring under each dice
+    const ringGeom = new THREE.RingGeometry(diceSize * 0.65, diceSize * 0.85, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: idx === activeDiceIndex ? 0x6366f1 : 0x334155,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const ringMesh = new THREE.Mesh(ringGeom, ringMat);
+    ringMesh.rotation.x = Math.PI / 2;
+    ringMesh.position.y = -diceSize / 2 - 0.05;
+    diceGroup.add(ringMesh);
 
-    // Top Face (Flaps up 90 deg)
-    const topMesh = createFacePlane(topVal, 'Top');
-    topMesh.position.set(0, size * progress, 0);
-    topMesh.rotation.x = -((1 - progress) * (Math.PI / 2));
-    group.add(topMesh);
+    // 3D Text Badge Label
+    const diceNameHi = dice.labelHi || `पासा ${idx + 1}`;
+    const diceNameEn = dice.labelEn || `Position ${String.fromCharCode(65 + idx)}`;
+    const labelSprite = createLabelSprite(
+      diceNameHi,
+      `T:${topV} F:${frontV} R:${rightV}`,
+      idx === activeDiceIndex ? '#38bdf8' : '#94a3b8'
+    );
+    labelSprite.position.set(0, diceSize / 2 + 0.8, 0);
+    diceGroup.add(labelSprite);
 
-    // Bottom Face (Flaps down 90 deg)
-    const bottomMesh = createFacePlane(bottomVal, 'Bottom');
-    bottomMesh.position.set(0, -size * progress, 0);
-    bottomMesh.rotation.x = (1 - progress) * (Math.PI / 2);
-    group.add(bottomMesh);
-
-    // Left Face (Flaps left 90 deg)
-    const leftMesh = createFacePlane(leftVal, 'Left');
-    leftMesh.position.set(-size * progress, 0, 0);
-    leftMesh.rotation.y = (1 - progress) * (Math.PI / 2);
-    group.add(leftMesh);
-
-    // Right Face (Flaps right 90 deg)
-    const rightMesh = createFacePlane(rightVal, 'Right');
-    rightMesh.position.set(size * progress, 0, 0);
-    rightMesh.rotation.y = -((1 - progress) * (Math.PI / 2));
-    group.add(rightMesh);
-
-    // Back Face (Flaps past right)
-    const backMesh = createFacePlane(backVal, 'Back');
-    backMesh.position.set(size * 2 * progress, 0, 0);
-    group.add(backMesh);
-  }
+    group.add(diceGroup);
+  });
 }

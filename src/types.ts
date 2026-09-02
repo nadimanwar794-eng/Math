@@ -121,6 +121,29 @@ export type ActiveTab =
   | 'offline_solver'
   | 'quiz_practice';
 
+// Multi-Dice Reasoning Types (up to 4 dice)
+export interface SingleDiceView {
+  id: number;
+  top: number;
+  front: number;
+  right: number;
+  bottom?: number;
+  left?: number;
+  back?: number;
+  labelHi?: string;
+  labelEn?: string;
+}
+
+export interface Dice3DParams {
+  diceList?: SingleDiceView[]; // Supports 1, 2, 3, or 4 dice in 3D
+  activeDiceIndex?: number;
+  isUnfolded?: boolean;
+  unfoldProgress?: number; // 0 to 1
+  unfoldStep?: number; // 0 (closed), 1 (top), 2 (bottom), 3 (left), 4 (right), 5 (back / full net)
+  stepByStepMode?: boolean;
+  diceValues?: [number, number, number, number, number, number]; // legacy single dice [top, bottom, front, back, left, right]
+}
+
 export interface QuizQuestion {
   id: string;
   topic: 'cube_cutting' | 'dice_reasoning' | 'mensuration' | 'geometry_2d';
