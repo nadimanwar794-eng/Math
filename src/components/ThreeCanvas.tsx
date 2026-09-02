@@ -475,97 +475,318 @@ function renderMathShape(group: THREE.Group, params: ShapeParams) {
   const sLength = (length || 1) * scale;
   const sWidth = (width || 1) * scale;
 
-  const isExploded = explodedParts > 0.01;
-  const explodeDist = explodedParts * 2.8;
+  // Determine Unfolding Progress (0 = closed 3D solid, 1 = full 2D net)
+  const isExploded = (explodedParts || 0) > 0.01;
+  const isUnfolding = unrollNet || (params.unfoldStep !== undefined && params.unfoldStep > 0) || (params.unfoldProgress !== undefined && params.unfoldProgress > 0);
+  const explodeDist = (explodedParts || 0) * 2.8;
+
+  // Compute normalized unfolding progress (0 to 1)
+  let unfoldP = 0;
+  if (params.unfoldProgress !== undefined && params.unfoldProgress > 0) {
+    unfoldP = Math.max(0, Math.min(1, params.unfoldProgress));
+  } else if (params.unfoldStep !== undefined) {
+    // Step counts per shape
+    const maxSteps = (type === 'cube' || type === 'cuboid' || type === 'pyramid' || type === 'prism') ? 5 : (type === 'cylinder' || type === 'hollow_cylinder' || type === 'frustum') ? 4 : (type === 'cone') ? 3 : 2;
+    unfoldP = Math.max(0, Math.min(1, params.unfoldStep / maxSteps));
+  } else if (unrollNet) {
+    unfoldP = 1.0;
+  }
 
   // --------------------------------------------------------------------------
-  // 1. CYLINDER (बेलन) - Exploded: Top circular lid, Bottom circular lid, Curved Surface
+  // Helper to create textured 2D/3D Face Plates with Title & Formula
   // --------------------------------------------------------------------------
-  if (type === 'cylinder' && isExploded) {
-    const lidHeight = Math.max(0.08, sHeight * 0.05);
+  const createFaceTexture = (title: string, formula: string, bgColor: string, borderColor: string) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.CanvasTexture(canvas);
 
-    // Top Lid (ऊपरी वृत्ताकार सिरा: π r²)
-    const topGeom = new THREE.CylinderGeometry(sRadius, sRadius, lidHeight, 48);
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, 512, 512);
+
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 18;
+    ctx.strokeRect(9, 9, 494, 494);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(32, 32, 448, 448);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 42px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, 256, 210);
+
+    ctx.fillStyle = borderColor;
+    ctx.font = 'bold 50px "JetBrains Mono", monospace';
+    ctx.fillText(formula, 256, 290);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 4;
+    return texture;
+  };
+
+  const createFaceMesh = (w: number, h: number, title: string, formula: string, bg: string, border: string) => {
+    const frontMat = new THREE.MeshStandardMaterial({
+      map: createFaceTexture(title, formula, bg, border),
+      roughness: 0.25,
+      metalness: 0.15,
+      side: THREE.FrontSide,
+    });
+    const backMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5, side: THREE.BackSide });
+    const sideMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+    const geom = new THREE.BoxGeometry(w * 0.98, h * 0.98, 0.06);
+    const materials = [sideMat, sideMat, sideMat, sideMat, frontMat, backMat];
+    const mesh = new THREE.Mesh(geom, materials);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+  };
+
+  // --------------------------------------------------------------------------
+  // 1. CUBE & CUBOID (घन व घनाभ) - Step-Wise 3D to 2D Net Unfolding
+  // --------------------------------------------------------------------------
+  if ((type === 'cube' || type === 'cuboid') && (isUnfolding || isExploded)) {
+    const L = sLength;
+    const H = type === 'cube' ? sLength : sHeight;
+    const W = type === 'cube' ? sLength : sWidth;
+
+    const p = unfoldP > 0 ? unfoldP : isExploded ? Math.min(1, explodedParts * 1.2) : 0;
+    const pTop = Math.min(1, Math.max(0, p / 0.2));
+    const pBot = Math.min(1, Math.max(0, (p - 0.2) / 0.2));
+    const pLeft = Math.min(1, Math.max(0, (p - 0.4) / 0.2));
+    const pRight = Math.min(1, Math.max(0, (p - 0.6) / 0.2));
+    const pBack = Math.min(1, Math.max(0, (p - 0.8) / 0.2));
+
+    const topAngle = (1 - pTop) * (-Math.PI / 2);
+    const bottomAngle = (1 - pBot) * (Math.PI / 2);
+    const leftAngle = (1 - pLeft) * (-Math.PI / 2);
+    const rightAngle = (1 - pRight) * (Math.PI / 2);
+    const backAngle = (1 - pBack) * (Math.PI / 2);
+
+    // Front Face (Center Origin)
+    const frontMesh = createFaceMesh(
+      L,
+      H,
+      type === 'cube' ? 'सामने (Front)' : 'सामने (Front)',
+      type === 'cube' ? 'a²' : 'l × h',
+      '#1e3a8a',
+      '#3b82f6'
+    );
+    frontMesh.position.set(0, 0, 0);
+    group.add(frontMesh);
+
+    // Top Face Hinge
+    const topHinge = new THREE.Group();
+    topHinge.position.set(0, H / 2, 0);
+    const topMesh = createFaceMesh(
+      L,
+      W,
+      type === 'cube' ? 'ऊपर (Top)' : 'ऊपर (Top)',
+      type === 'cube' ? 'a²' : 'l × b',
+      '#312e81',
+      '#6366f1'
+    );
+    topMesh.position.set(0, W / 2, 0);
+    topHinge.add(topMesh);
+    topHinge.rotation.x = topAngle;
+    group.add(topHinge);
+
+    // Bottom Face Hinge
+    const botHinge = new THREE.Group();
+    botHinge.position.set(0, -H / 2, 0);
+    const botMesh = createFaceMesh(
+      L,
+      W,
+      type === 'cube' ? 'नीचे (Bottom)' : 'नीचे (Bottom)',
+      type === 'cube' ? 'a²' : 'l × b',
+      '#881337',
+      '#f43f5e'
+    );
+    botMesh.position.set(0, -W / 2, 0);
+    botHinge.add(botMesh);
+    botHinge.rotation.x = bottomAngle;
+    group.add(botHinge);
+
+    // Left Face Hinge
+    const leftHinge = new THREE.Group();
+    leftHinge.position.set(-L / 2, 0, 0);
+    const leftMesh = createFaceMesh(
+      W,
+      H,
+      type === 'cube' ? 'बायां (Left)' : 'बायां (Left)',
+      type === 'cube' ? 'a²' : 'b × h',
+      '#064e3b',
+      '#10b981'
+    );
+    leftMesh.position.set(-W / 2, 0, 0);
+    leftHinge.add(leftMesh);
+    leftHinge.rotation.y = leftAngle;
+    group.add(leftHinge);
+
+    // Right Face Hinge
+    const rightHinge = new THREE.Group();
+    rightHinge.position.set(L / 2, 0, 0);
+    const rightMesh = createFaceMesh(
+      W,
+      H,
+      type === 'cube' ? 'दायां (Right)' : 'दायां (Right)',
+      type === 'cube' ? 'a²' : 'b × h',
+      '#78350f',
+      '#f59e0b'
+    );
+    rightMesh.position.set(W / 2, 0, 0);
+    rightHinge.add(rightMesh);
+
+    // Back Face Hinge (attached hierarchically to outer edge of Right Face)
+    const backHinge = new THREE.Group();
+    backHinge.position.set(W, 0, 0);
+    const backMesh = createFaceMesh(
+      L,
+      H,
+      type === 'cube' ? 'पीछे (Back)' : 'पीछे (Back)',
+      type === 'cube' ? 'a²' : 'l × h',
+      '#581c87',
+      '#a855f7'
+    );
+    backMesh.position.set(L / 2, 0, 0);
+    backHinge.add(backMesh);
+    backHinge.rotation.y = backAngle;
+
+    rightHinge.add(backHinge);
+    rightHinge.rotation.y = rightAngle;
+    group.add(rightHinge);
+
+    return;
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. CYLINDER (बेलन) - Step-wise 3D to 2D Net Unrolling
+  // --------------------------------------------------------------------------
+  if (type === 'cylinder' && (isUnfolding || isExploded)) {
+    const p = unfoldP > 0 ? unfoldP : isExploded ? Math.min(1, explodedParts * 1.2) : 0;
+    const lidH = Math.max(0.06, sHeight * 0.04);
+    const rectW = 2 * Math.PI * sRadius;
+
+    // Phase 1 (0 to 0.3): Top Circle detaches & moves to top 2D flat position
+    const pTop = Math.min(1, Math.max(0, p / 0.3));
+    const topY = (sHeight / 2 + lidH / 2) + pTop * (sRadius + 0.3);
+    const topGeom = new THREE.CylinderGeometry(sRadius, sRadius, lidH, 48);
     const topMat = new THREE.MeshStandardMaterial({
-      color: '#10b981', // emerald
-      wireframe,
-      transparent,
-      opacity: transparent ? opacity : 0.95,
+      map: createFaceTexture('ऊपरी सिरा', 'π r²', '#064e3b', '#10b981'),
       roughness: 0.3,
-      metalness: 0.2,
     });
     const topMesh = new THREE.Mesh(topGeom, topMat);
-    const topY = sHeight / 2 + explodeDist + lidHeight / 2;
-    topMesh.position.y = topY;
-    topMesh.castShadow = true;
+    topMesh.position.set(0, topY, 0);
+    // Rotate to face camera as it flattens into 2D net
+    topMesh.rotation.x = pTop * (Math.PI / 2);
     group.add(topMesh);
     group.add(new THREE.LineSegments(new THREE.EdgesGeometry(topGeom), edgeMaterial).translateY(topY));
 
-    // Bottom Lid (निचला वृत्ताकार सिरा: π r²)
-    const botGeom = new THREE.CylinderGeometry(sRadius, sRadius, lidHeight, 48);
+    // Phase 2 (0.3 to 0.6): Bottom Circle detaches & moves to bottom 2D flat position
+    const pBot = Math.min(1, Math.max(0, (p - 0.3) / 0.3));
+    const botY = (-sHeight / 2 - lidH / 2) - pBot * (sRadius + 0.3);
+    const botGeom = new THREE.CylinderGeometry(sRadius, sRadius, lidH, 48);
     const botMat = new THREE.MeshStandardMaterial({
-      color: '#06b6d4', // cyan
-      wireframe,
-      transparent,
-      opacity: transparent ? opacity : 0.95,
+      map: createFaceTexture('निचला सिरा', 'π r²', '#083344', '#06b6d4'),
       roughness: 0.3,
-      metalness: 0.2,
     });
     const botMesh = new THREE.Mesh(botGeom, botMat);
-    const botY = -sHeight / 2 - explodeDist - lidHeight / 2;
-    botMesh.position.y = botY;
-    botMesh.castShadow = true;
+    botMesh.position.set(0, botY, 0);
+    botMesh.rotation.x = -pBot * (Math.PI / 2);
     group.add(botMesh);
     group.add(new THREE.LineSegments(new THREE.EdgesGeometry(botGeom), edgeMaterial).translateY(botY));
 
-    // Curved Surface (वक्र पृष्ठ: 2πrh)
-    if (unrollNet) {
-      // Unrolled into flat rectangular sheet
-      const rectWidth = 2 * Math.PI * sRadius;
-      const rectGeom = new THREE.PlaneGeometry(rectWidth, sHeight, 32, 16);
-      const rectMat = new THREE.MeshStandardMaterial({
+    // Phase 3 (0.6 to 1.0): Curved Mantle unrolls smoothly from 3D tube to flat 2D rectangle (2πr × h)
+    const pUnroll = Math.min(1, Math.max(0, (p - 0.5) / 0.5));
+    if (pUnroll > 0.05) {
+      // Parametric unrolling sheet
+      const alpha = 2 * Math.PI * (1 - pUnroll);
+      const isNearFlat = alpha < 0.08;
+      const rAlpha = isNearFlat ? 0 : rectW / alpha;
+      const nx = 48;
+      const ny = 16;
+      const positions: number[] = [];
+      const uvs: number[] = [];
+      const indices: number[] = [];
+
+      for (let j = 0; j <= ny; j++) {
+        const v = j / ny;
+        const y = (v - 0.5) * sHeight;
+        for (let i = 0; i <= nx; i++) {
+          const u = i / nx;
+          const uC = u - 0.5;
+          let x = 0;
+          let z = 0;
+          if (isNearFlat) {
+            x = uC * rectW;
+            z = 0;
+          } else {
+            const phi = uC * alpha;
+            x = rAlpha * Math.sin(phi);
+            z = rAlpha * Math.cos(phi) - rAlpha;
+          }
+          positions.push(x, y, z);
+          uvs.push(u, v);
+        }
+      }
+
+      for (let j = 0; j < ny; j++) {
+        for (let i = 0; i < nx; i++) {
+          const a = j * (nx + 1) + i;
+          const b = j * (nx + 1) + (i + 1);
+          const c = (j + 1) * (nx + 1) + i;
+          const d = (j + 1) * (nx + 1) + (i + 1);
+          indices.push(a, b, c);
+          indices.push(b, d, c);
+        }
+      }
+
+      const unrollGeom = new THREE.BufferGeometry();
+      unrollGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      unrollGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      unrollGeom.setIndex(indices);
+      unrollGeom.computeVertexNormals();
+
+      const mantleMat = new THREE.MeshStandardMaterial({
         color: color || '#3b82f6',
         side: THREE.DoubleSide,
-        wireframe,
-        transparent,
-        opacity: transparent ? opacity : 0.9,
+        roughness: 0.3,
+        metalness: 0.15,
       });
-      const rectMesh = new THREE.Mesh(rectGeom, rectMat);
-      rectMesh.position.z = sRadius + explodeDist * 0.4;
-      group.add(rectMesh);
-      group.add(new THREE.LineSegments(new THREE.EdgesGeometry(rectGeom), edgeMaterial).translateZ(rectMesh.position.z));
+      const mantleMesh = new THREE.Mesh(unrollGeom, mantleMat);
+      group.add(mantleMesh);
+      group.add(new THREE.LineSegments(new THREE.WireframeGeometry(unrollGeom), edgeMaterial));
     } else {
-      // Open hollow mantle tube
+      // Hollow tube
       const mantleGeom = new THREE.CylinderGeometry(sRadius, sRadius, sHeight, 48, 16, true);
       const mantleMat = new THREE.MeshStandardMaterial({
         color: color || '#3b82f6',
-        wireframe,
-        transparent,
-        opacity: transparent ? opacity : 0.9,
-        roughness: 0.25,
-        metalness: 0.2,
         side: THREE.DoubleSide,
+        roughness: 0.3,
+        metalness: 0.15,
       });
       const mantleMesh = new THREE.Mesh(mantleGeom, mantleMat);
-      mantleMesh.castShadow = true;
       group.add(mantleMesh);
       group.add(new THREE.LineSegments(new THREE.EdgesGeometry(mantleGeom), edgeMaterial));
     }
 
     if (showLabels) {
-      const topSprite = createTextSprite('ऊपरी सिरा (Top: π r²)', '#064e3b', '#34d399');
+      const topSprite = createTextSprite('ऊपरी वृत्त (Top: π r²)', '#064e3b', '#34d399');
       topSprite.position.set(0, topY + 0.8, 0);
       group.add(topSprite);
 
       const midSprite = createTextSprite(
-        unrollNet ? 'खुला वक्र पृष्ठ (2πr × h)' : 'वक्र पृष्ठ (CSA: 2πrh)',
+        p > 0.5 ? '2D खुला वक्र पृष्ठ (2πr × h)' : 'वक्र पृष्ठ (CSA: 2πrh)',
         '#1e1b4b',
         '#818cf8'
       );
       midSprite.position.set(0, 0, sRadius + 1.2);
       group.add(midSprite);
 
-      const botSprite = createTextSprite('निचला सिरा (Base: π r²)', '#083344', '#22d3ee');
+      const botSprite = createTextSprite('निचला वृत्त (Base: π r²)', '#083344', '#22d3ee');
       botSprite.position.set(0, botY - 0.8, 0);
       group.add(botSprite);
     }
@@ -573,12 +794,263 @@ function renderMathShape(group: THREE.Group, params: ShapeParams) {
   }
 
   // --------------------------------------------------------------------------
-  // 2. HOLLOW CYLINDER (खोखला बेलन / पाइप) - Exploded
+  // 3. CONE (शंकु) - Step-wise 3D to 2D Net Unfolding (Base Circle + Sector πrl)
+  // --------------------------------------------------------------------------
+  if (type === 'cone' && (isUnfolding || isExploded)) {
+    const p = unfoldP > 0 ? unfoldP : isExploded ? Math.min(1, explodedParts * 1.2) : 0;
+    const lSlant = Math.sqrt(sRadius * sRadius + sHeight * sHeight);
+    const thetaSector = (sRadius / lSlant) * 2 * Math.PI; // Sector angle in radians
+
+    // Phase 1 (0 to 0.4): Base Circle unfolds down
+    const pBase = Math.min(1, Math.max(0, p / 0.4));
+    const baseY = (-sHeight / 2) - pBase * (sRadius + 0.4);
+    const baseGeom = new THREE.CircleGeometry(sRadius, 48);
+    const baseMat = new THREE.MeshStandardMaterial({
+      map: createFaceTexture('आधार वृत्त', 'π r²', '#064e3b', '#10b981'),
+      side: THREE.DoubleSide,
+    });
+    const baseMesh = new THREE.Mesh(baseGeom, baseMat);
+    baseMesh.position.set(0, baseY, 0);
+    baseMesh.rotation.x = Math.PI / 2 + pBase * (Math.PI / 2);
+    group.add(baseMesh);
+    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(baseGeom), edgeMaterial).translateY(baseY).rotateX(baseMesh.rotation.x));
+
+    // Phase 2 (0.4 to 1.0): Conical mantle unrolls into 2D Circular Sector of radius l
+    const pUnroll = Math.min(1, Math.max(0, (p - 0.3) / 0.7));
+    if (pUnroll > 0.1) {
+      // 2D Circular Sector Net
+      const sectorGeom = new THREE.RingGeometry(0.01, lSlant, 48, 8, 0, thetaSector);
+      const sectorMat = new THREE.MeshStandardMaterial({
+        color: color || '#f59e0b',
+        side: THREE.DoubleSide,
+        roughness: 0.3,
+        metalness: 0.15,
+      });
+      const sectorMesh = new THREE.Mesh(sectorGeom, sectorMat);
+      sectorMesh.position.set(0, lSlant / 2, 0);
+      group.add(sectorMesh);
+      group.add(new THREE.LineSegments(new THREE.EdgesGeometry(sectorGeom), edgeMaterial).translateY(lSlant / 2));
+    } else {
+      // 3D Cone
+      const coneGeom = new THREE.ConeGeometry(sRadius, sHeight, 48, 16, true);
+      const coneMat = new THREE.MeshStandardMaterial({ color: color || '#f59e0b', side: THREE.DoubleSide });
+      const coneMesh = new THREE.Mesh(coneGeom, coneMat);
+      group.add(coneMesh);
+      group.add(new THREE.LineSegments(new THREE.EdgesGeometry(coneGeom), edgeMaterial));
+    }
+
+    if (showLabels) {
+      const topSprite = createTextSprite(
+        p > 0.4 ? '2D त्रिज्यखंड वक्र पृष्ठ (πrl)' : 'वक्र पृष्ठ (CSA: πrl)',
+        '#451a03',
+        '#fbbf24'
+      );
+      topSprite.position.set(0, sHeight / 2 + 0.8, 0);
+      group.add(topSprite);
+
+      const botSprite = createTextSprite('आधार वृत्त (Base: πr²)', '#064e3b', '#34d399');
+      botSprite.position.set(0, baseY - 0.8, 0);
+      group.add(botSprite);
+    }
+    return;
+  }
+
+  // --------------------------------------------------------------------------
+  // 4. PYRAMID (पिरामिड) - Step-wise 3D to 2D Star/Cross Net Unfolding
+  // --------------------------------------------------------------------------
+  if (type === 'pyramid' && (isUnfolding || isExploded)) {
+    const a = sLength;
+    const H = sHeight;
+    const lSlant = Math.sqrt((a / 2) * (a / 2) + H * H);
+    const p = unfoldP > 0 ? unfoldP : isExploded ? Math.min(1, explodedParts * 1.2) : 0;
+
+    const slantCloseAngle = Math.atan2(H, a / 2); // angle to close into 3D pyramid apex
+    const pFront = Math.min(1, Math.max(0, p / 0.25));
+    const pBack = Math.min(1, Math.max(0, (p - 0.25) / 0.25));
+    const pLeft = Math.min(1, Math.max(0, (p - 0.5) / 0.25));
+    const pRight = Math.min(1, Math.max(0, (p - 0.75) / 0.25));
+
+    // Base Square Mesh
+    const baseGeom = new THREE.PlaneGeometry(a, a);
+    const baseMat = new THREE.MeshStandardMaterial({
+      map: createFaceTexture('आधार वर्ग', 'a²', '#1e3a8a', '#3b82f6'),
+      side: THREE.DoubleSide,
+    });
+    const baseMesh = new THREE.Mesh(baseGeom, baseMat);
+    baseMesh.position.set(0, 0, 0);
+    group.add(baseMesh);
+
+    // Helper for triangular face
+    const createTriGeom = () => {
+      const geom = new THREE.BufferGeometry();
+      const vertices = new Float32Array([
+        -a / 2, 0, 0,
+        a / 2, 0, 0,
+        0, lSlant, 0,
+      ]);
+      const uvs = new Float32Array([0, 0, 1, 0, 0.5, 1]);
+      geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      geom.computeVertexNormals();
+      return geom;
+    };
+
+    const triMat = new THREE.MeshStandardMaterial({
+      color: color || '#f59e0b',
+      side: THREE.DoubleSide,
+      roughness: 0.3,
+    });
+
+    // 1. Front Triangle Hinge (attached at y = -a/2)
+    const frontHinge = new THREE.Group();
+    frontHinge.position.set(0, -a / 2, 0);
+    const frontMesh = new THREE.Mesh(createTriGeom(), triMat);
+    frontMesh.rotation.z = Math.PI; // Point downwards in 2D
+    frontHinge.add(frontMesh);
+    frontHinge.rotation.x = (1 - pFront) * (-slantCloseAngle);
+    group.add(frontHinge);
+
+    // 2. Back Triangle Hinge (attached at y = +a/2)
+    const backHinge = new THREE.Group();
+    backHinge.position.set(0, a / 2, 0);
+    const backMesh = new THREE.Mesh(createTriGeom(), triMat);
+    backHinge.add(backMesh);
+    backHinge.rotation.x = (1 - pBack) * (slantCloseAngle);
+    group.add(backHinge);
+
+    // 3. Left Triangle Hinge (attached at x = -a/2)
+    const leftHinge = new THREE.Group();
+    leftHinge.position.set(-a / 2, 0, 0);
+    const leftMesh = new THREE.Mesh(createTriGeom(), triMat);
+    leftMesh.rotation.z = Math.PI / 2; // Point left in 2D
+    leftHinge.add(leftMesh);
+    leftHinge.rotation.y = (1 - pLeft) * (slantCloseAngle);
+    group.add(leftHinge);
+
+    // 4. Right Triangle Hinge (attached at x = +a/2)
+    const rightHinge = new THREE.Group();
+    rightHinge.position.set(a / 2, 0, 0);
+    const rightMesh = new THREE.Mesh(createTriGeom(), triMat);
+    rightMesh.rotation.z = -Math.PI / 2; // Point right in 2D
+    rightHinge.add(rightMesh);
+    rightHinge.rotation.y = (1 - pRight) * (-slantCloseAngle);
+    group.add(rightHinge);
+
+    return;
+  }
+
+  // --------------------------------------------------------------------------
+  // 5. PRISM (प्रिज्म) - Step-wise 3D to 2D Net Unfolding
+  // --------------------------------------------------------------------------
+  if (type === 'prism' && (isUnfolding || isExploded)) {
+    const a = sLength;
+    const H = sHeight;
+    const triH = (Math.sqrt(3) / 2) * a;
+    const p = unfoldP > 0 ? unfoldP : isExploded ? Math.min(1, explodedParts * 1.2) : 0;
+
+    const pTop = Math.min(1, Math.max(0, p / 0.25));
+    const pBot = Math.min(1, Math.max(0, (p - 0.25) / 0.25));
+    const pLeft = Math.min(1, Math.max(0, (p - 0.5) / 0.25));
+    const pRight = Math.min(1, Math.max(0, (p - 0.75) / 0.25));
+
+    // Center Rectangle
+    const centerMesh = createFaceMesh(a, H, 'मुख्य आयत', 'a × h', '#1e3a8a', '#3b82f6');
+    group.add(centerMesh);
+
+    // Left Rectangle
+    const leftHinge = new THREE.Group();
+    leftHinge.position.set(-a / 2, 0, 0);
+    const leftMesh = createFaceMesh(a, H, 'बायां आयत', 'a × h', '#064e3b', '#10b981');
+    leftMesh.position.set(-a / 2, 0, 0);
+    leftHinge.add(leftMesh);
+    leftHinge.rotation.y = (1 - pLeft) * (-Math.PI / 3);
+    group.add(leftHinge);
+
+    // Right Rectangle
+    const rightHinge = new THREE.Group();
+    rightHinge.position.set(a / 2, 0, 0);
+    const rightMesh = createFaceMesh(a, H, 'दायां आयत', 'a × h', '#78350f', '#f59e0b');
+    rightMesh.position.set(a / 2, 0, 0);
+    rightHinge.add(rightMesh);
+    rightHinge.rotation.y = (1 - pRight) * (Math.PI / 3);
+    group.add(rightHinge);
+
+    // Top Triangle Cap
+    const createTriGeom = () => {
+      const geom = new THREE.BufferGeometry();
+      const vertices = new Float32Array([
+        -a / 2, 0, 0,
+        a / 2, 0, 0,
+        0, triH, 0,
+      ]);
+      geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      geom.computeVertexNormals();
+      return geom;
+    };
+    const triMat = new THREE.MeshStandardMaterial({ color: '#6366f1', side: THREE.DoubleSide });
+
+    const topHinge = new THREE.Group();
+    topHinge.position.set(0, H / 2, 0);
+    const topTri = new THREE.Mesh(createTriGeom(), triMat);
+    topHinge.add(topTri);
+    topHinge.rotation.x = (1 - pTop) * (-Math.PI / 2);
+    group.add(topHinge);
+
+    const botHinge = new THREE.Group();
+    botHinge.position.set(0, -H / 2, 0);
+    const botTri = new THREE.Mesh(createTriGeom(), triMat);
+    botTri.rotation.z = Math.PI;
+    botHinge.add(botTri);
+    botHinge.rotation.x = (1 - pBot) * (Math.PI / 2);
+    group.add(botHinge);
+
+    return;
+  }
+
+  // --------------------------------------------------------------------------
+  // 6. FRUSTUM (छिन्नक) - Step-wise 3D to 2D Net Unfolding
+  // --------------------------------------------------------------------------
+  if (type === 'frustum' && (isUnfolding || isExploded)) {
+    const p = unfoldP > 0 ? unfoldP : isExploded ? Math.min(1, explodedParts * 1.2) : 0;
+    const lidH = Math.max(0.06, sHeight * 0.04);
+    const topY = sHeight / 2 + p * (sRadiusTop + 0.3);
+    const botY = -sHeight / 2 - p * (sRadius + 0.3);
+
+    // Top Circle
+    const topGeom = new THREE.CylinderGeometry(sRadiusTop, sRadiusTop, lidH, 48);
+    const topMat = new THREE.MeshStandardMaterial({
+      map: createFaceTexture('ऊपरी सिरा', 'π r₂²', '#431407', '#fb923c'),
+    });
+    const topMesh = new THREE.Mesh(topGeom, topMat);
+    topMesh.position.set(0, topY, 0);
+    topMesh.rotation.x = p * (Math.PI / 2);
+    group.add(topMesh);
+
+    // Bottom Circle
+    const botGeom = new THREE.CylinderGeometry(sRadius, sRadius, lidH, 48);
+    const botMat = new THREE.MeshStandardMaterial({
+      map: createFaceTexture('निचला सिरा', 'π r₁²', '#064e3b', '#10b981'),
+    });
+    const botMesh = new THREE.Mesh(botGeom, botMat);
+    botMesh.position.set(0, botY, 0);
+    botMesh.rotation.x = -p * (Math.PI / 2);
+    group.add(botMesh);
+
+    // Slant lateral body
+    const bodyGeom = new THREE.CylinderGeometry(sRadiusTop, sRadius, sHeight, 48, 16, true);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: color || '#3b82f6', side: THREE.DoubleSide });
+    const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
+    group.add(bodyMesh);
+    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(bodyGeom), edgeMaterial));
+
+    return;
+  }
+
+  // --------------------------------------------------------------------------
+  // 7. HOLLOW CYLINDER, HEMISPHERE, SPHERE (Exploded Parts)
   // --------------------------------------------------------------------------
   if (type === 'hollow_cylinder' && isExploded) {
     const ringHeight = Math.max(0.08, sHeight * 0.05);
-
-    // Helper to build 2D ring geometry
     const makeRingGeom = () => {
       const arcShape = new THREE.Shape();
       arcShape.absarc(0, 0, sRadiusOuter, 0, Math.PI * 2, false);
@@ -592,267 +1064,69 @@ function renderMathShape(group: THREE.Group, params: ShapeParams) {
       return g;
     };
 
-    // Top Ring
     const topRingGeom = makeRingGeom();
     const topRingMat = new THREE.MeshStandardMaterial({ color: '#10b981', side: THREE.DoubleSide });
     const topRingMesh = new THREE.Mesh(topRingGeom, topRingMat);
     const topY = sHeight / 2 + explodeDist;
     topRingMesh.position.y = topY;
     group.add(topRingMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(topRingGeom), edgeMaterial).translateY(topY));
 
-    // Bottom Ring
     const botRingGeom = makeRingGeom();
     const botRingMat = new THREE.MeshStandardMaterial({ color: '#06b6d4', side: THREE.DoubleSide });
     const botRingMesh = new THREE.Mesh(botRingGeom, botRingMat);
     const botY = -sHeight / 2 - explodeDist;
     botRingMesh.position.y = botY;
     group.add(botRingMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(botRingGeom), edgeMaterial).translateY(botY));
 
-    // Outer Tube
     const outerGeom = new THREE.CylinderGeometry(sRadiusOuter, sRadiusOuter, sHeight, 48, 16, true);
     const outerMat = new THREE.MeshStandardMaterial({ color: color || '#3b82f6', side: THREE.DoubleSide, opacity: 0.85, transparent: true });
-    const outerMesh = new THREE.Mesh(outerGeom, outerMat);
-    group.add(outerMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(outerGeom), edgeMaterial));
+    group.add(new THREE.Mesh(outerGeom, outerMat));
 
-    // Inner Tube
     const innerGeom = new THREE.CylinderGeometry(sRadius, sRadius, sHeight, 48, 16, true);
     const innerMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', side: THREE.DoubleSide, opacity: 0.9, transparent: true });
-    const innerMesh = new THREE.Mesh(innerGeom, innerMat);
-    group.add(innerMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(innerGeom), edgeMaterial));
-
-    if (showLabels) {
-      const topSprite = createTextSprite('ऊपरी वलय π(R² - r²)', '#064e3b', '#34d399');
-      topSprite.position.set(0, topY + 0.8, 0);
-      group.add(topSprite);
-
-      const outSprite = createTextSprite('बाह्य वक्र पृष्ठ (2πRh)', '#1e1b4b', '#818cf8');
-      outSprite.position.set(0, 0, sRadiusOuter + 1.2);
-      group.add(outSprite);
-
-      const botSprite = createTextSprite('निचला वलय π(R² - r²)', '#083344', '#22d3ee');
-      botSprite.position.set(0, botY - 0.8, 0);
-      group.add(botSprite);
-    }
+    group.add(new THREE.Mesh(innerGeom, innerMat));
     return;
   }
 
-  // --------------------------------------------------------------------------
-  // 3. CONE (शंकु) - Exploded: Base Circle & Conical Curved Surface
-  // --------------------------------------------------------------------------
-  if (type === 'cone' && isExploded) {
-    const lidHeight = Math.max(0.08, sHeight * 0.05);
-
-    // Conical mantle (no base)
-    const coneGeom = new THREE.ConeGeometry(sRadius, sHeight, 48, 16, true);
-    const coneMat = new THREE.MeshStandardMaterial({ color: color || '#f59e0b', side: THREE.DoubleSide });
-    const coneMesh = new THREE.Mesh(coneGeom, coneMat);
-    const coneY = explodeDist * 0.8;
-    coneMesh.position.y = coneY;
-    group.add(coneMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(coneGeom), edgeMaterial).translateY(coneY));
-
-    // Base Disc
-    const baseGeom = new THREE.CylinderGeometry(sRadius, sRadius, lidHeight, 48);
-    const baseMat = new THREE.MeshStandardMaterial({ color: '#10b981' });
-    const baseMesh = new THREE.Mesh(baseGeom, baseMat);
-    const baseY = -sHeight / 2 - explodeDist - lidHeight / 2;
-    baseMesh.position.y = baseY;
-    group.add(baseMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(baseGeom), edgeMaterial).translateY(baseY));
-
-    if (showLabels) {
-      const topSprite = createTextSprite('वक्र पृष्ठ (CSA: πrl)', '#451a03', '#fbbf24');
-      topSprite.position.set(0, coneY + sHeight / 2 + 0.8, 0);
-      group.add(topSprite);
-
-      const botSprite = createTextSprite('आधार वृत्त (Base: πr²)', '#064e3b', '#34d399');
-      botSprite.position.set(0, baseY - 0.8, 0);
-      group.add(botSprite);
-    }
-    return;
-  }
-
-  // --------------------------------------------------------------------------
-  // 4. FRUSTUM (छिन्नक / बाल्टी) - Exploded: Top circle, Bottom circle, Slant body
-  // --------------------------------------------------------------------------
-  if (type === 'frustum' && isExploded) {
-    const lidHeight = Math.max(0.08, sHeight * 0.05);
-
-    // Top Circle
-    const topGeom = new THREE.CylinderGeometry(sRadiusTop, sRadiusTop, lidHeight, 48);
-    const topMat = new THREE.MeshStandardMaterial({ color: '#f97316' });
-    const topMesh = new THREE.Mesh(topGeom, topMat);
-    const topY = sHeight / 2 + explodeDist + lidHeight / 2;
-    topMesh.position.y = topY;
-    group.add(topMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(topGeom), edgeMaterial).translateY(topY));
-
-    // Bottom Circle
-    const botGeom = new THREE.CylinderGeometry(sRadius, sRadius, lidHeight, 48);
-    const botMat = new THREE.MeshStandardMaterial({ color: '#10b981' });
-    const botMesh = new THREE.Mesh(botGeom, botMat);
-    const botY = -sHeight / 2 - explodeDist - lidHeight / 2;
-    botMesh.position.y = botY;
-    group.add(botMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(botGeom), edgeMaterial).translateY(botY));
-
-    // Lateral Mantle
-    const bodyGeom = new THREE.CylinderGeometry(sRadiusTop, sRadius, sHeight, 48, 16, true);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: color || '#3b82f6', side: THREE.DoubleSide });
-    const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
-    group.add(bodyMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(bodyGeom), edgeMaterial));
-
-    if (showLabels) {
-      const topSprite = createTextSprite('ऊपरी सिरा (π r₂²)', '#431407', '#fb923c');
-      topSprite.position.set(0, topY + 0.8, 0);
-      group.add(topSprite);
-
-      const midSprite = createTextSprite('वक्र पृष्ठ π(r₁ + r₂)l', '#1e1b4b', '#818cf8');
-      midSprite.position.set(0, 0, sRadius + 1.2);
-      group.add(midSprite);
-
-      const botSprite = createTextSprite('निचला सिरा (π r₁²)', '#064e3b', '#34d399');
-      botSprite.position.set(0, botY - 0.8, 0);
-      group.add(botSprite);
-    }
-    return;
-  }
-
-  // --------------------------------------------------------------------------
-  // 5. CUBE & CUBOID (घन व घनाभ) - Exploded 6 Faces Outward
-  // --------------------------------------------------------------------------
-  if ((type === 'cube' || type === 'cuboid') && isExploded) {
-    const l = sLength;
-    const h = type === 'cube' ? sLength : sHeight;
-    const w = type === 'cube' ? sLength : sWidth;
-
-    const faces = [
-      // Top (+Y)
-      { geom: new THREE.PlaneGeometry(l, w), pos: [0, h / 2 + explodeDist, 0], rot: [-Math.PI / 2, 0, 0], color: '#10b981', label: type === 'cube' ? 'ऊपर (a²)' : 'ऊपरी फलक (l × b)' },
-      // Bottom (-Y)
-      { geom: new THREE.PlaneGeometry(l, w), pos: [0, -h / 2 - explodeDist, 0], rot: [Math.PI / 2, 0, 0], color: '#06b6d4', label: type === 'cube' ? 'नीचे (a²)' : 'निचला फलक (l × b)' },
-      // Front (+Z)
-      { geom: new THREE.PlaneGeometry(l, h), pos: [0, 0, w / 2 + explodeDist], rot: [0, 0, 0], color: '#f59e0b', label: type === 'cube' ? 'सामने (a²)' : 'सामने (l × h)' },
-      // Back (-Z)
-      { geom: new THREE.PlaneGeometry(l, h), pos: [0, 0, -w / 2 - explodeDist], rot: [0, Math.PI, 0], color: '#ec4899', label: type === 'cube' ? 'पीछे (a²)' : 'पीछे (l × h)' },
-      // Right (+X)
-      { geom: new THREE.PlaneGeometry(w, h), pos: [l / 2 + explodeDist, 0, 0], rot: [0, Math.PI / 2, 0], color: '#8b5cf6', label: type === 'cube' ? 'दायां (a²)' : 'दायां फलक (b × h)' },
-      // Left (-X)
-      { geom: new THREE.PlaneGeometry(w, h), pos: [-l / 2 - explodeDist, 0, 0], rot: [0, -Math.PI / 2, 0], color: '#6366f1', label: type === 'cube' ? 'बायां (a²)' : 'बायां फलक (b × h)' },
-    ];
-
-    faces.forEach((f) => {
-      const mat = new THREE.MeshStandardMaterial({ color: f.color, side: THREE.DoubleSide, roughness: 0.3 });
-      const mesh = new THREE.Mesh(f.geom, mat);
-      mesh.position.set(f.pos[0], f.pos[1], f.pos[2]);
-      mesh.rotation.set(f.rot[0], f.rot[1], f.rot[2]);
-      group.add(mesh);
-      const edge = new THREE.LineSegments(new THREE.EdgesGeometry(f.geom), edgeMaterial);
-      edge.position.set(f.pos[0], f.pos[1], f.pos[2]);
-      edge.rotation.set(f.rot[0], f.rot[1], f.rot[2]);
-      group.add(edge);
-
-      if (showLabels) {
-        const sprite = createTextSprite(f.label, '#0f172a', '#f8fafc');
-        sprite.position.set(
-          f.pos[0] * 1.25,
-          f.pos[1] * 1.25 + (f.pos[1] > 0 ? 0.6 : f.pos[1] < 0 ? -0.6 : 0),
-          f.pos[2] * 1.25 + (f.pos[2] > 0 ? 0.6 : f.pos[2] < 0 ? -0.6 : 0)
-        );
-        group.add(sprite);
-      }
-    });
-    return;
-  }
-
-  // --------------------------------------------------------------------------
-  // 6. HEMISPHERE (अर्धगोला) - Exploded: Curved Dome & Flat Circular Base
-  // --------------------------------------------------------------------------
   if (type === 'hemisphere' && isExploded) {
-    // Curved Dome
     const domeGeom = new THREE.SphereGeometry(sRadius, 48, 48, 0, Math.PI * 2, 0, Math.PI / 2);
     const domeMat = new THREE.MeshStandardMaterial({ color: color || '#14b8a6', side: THREE.DoubleSide });
     const domeMesh = new THREE.Mesh(domeGeom, domeMat);
-    const domeY = explodeDist * 0.8;
-    domeMesh.position.y = domeY;
+    domeMesh.position.y = explodeDist * 0.8;
     group.add(domeMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(domeGeom), edgeMaterial).translateY(domeY));
 
-    // Flat Base Circle
     const baseGeom = new THREE.CircleGeometry(sRadius, 48);
     const baseMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', side: THREE.DoubleSide });
     const baseMesh = new THREE.Mesh(baseGeom, baseMat);
     baseMesh.rotation.x = Math.PI / 2;
-    const baseY = -explodeDist * 0.8;
-    baseMesh.position.y = baseY;
+    baseMesh.position.y = -explodeDist * 0.8;
     group.add(baseMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(baseGeom), edgeMaterial).translateY(baseY).rotateX(Math.PI / 2));
-
-    if (showLabels) {
-      const topSprite = createTextSprite('वक्र पृष्ठ (CSA: 2πr²)', '#042f2e', '#2dd4bf');
-      topSprite.position.set(0, domeY + sRadius + 0.6, 0);
-      group.add(topSprite);
-
-      const botSprite = createTextSprite('समतल आधार (Base: πr²)', '#451a03', '#fbbf24');
-      botSprite.position.set(0, baseY - 0.8, 0);
-      group.add(botSprite);
-    }
     return;
   }
 
-  // --------------------------------------------------------------------------
-  // 7. SPHERE (गोला) - Exploded: 2 Hemispheres + Center Equatorial Slice Plate
-  // --------------------------------------------------------------------------
   if (type === 'sphere' && isExploded) {
-    // Top Hemisphere
     const topGeom = new THREE.SphereGeometry(sRadius, 48, 48, 0, Math.PI * 2, 0, Math.PI / 2);
     const topMat = new THREE.MeshStandardMaterial({ color: color || '#ec4899', side: THREE.DoubleSide });
     const topMesh = new THREE.Mesh(topGeom, topMat);
-    const topY = explodeDist * 0.8;
-    topMesh.position.y = topY;
+    topMesh.position.y = explodeDist * 0.8;
     group.add(topMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(topGeom), edgeMaterial).translateY(topY));
 
-    // Bottom Hemisphere
     const botGeom = new THREE.SphereGeometry(sRadius, 48, 48, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
     const botMat = new THREE.MeshStandardMaterial({ color: '#a855f7', side: THREE.DoubleSide });
     const botMesh = new THREE.Mesh(botGeom, botMat);
-    const botY = -explodeDist * 0.8;
-    botMesh.position.y = botY;
+    botMesh.position.y = -explodeDist * 0.8;
     group.add(botMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(botGeom), edgeMaterial).translateY(botY));
 
-    // Center Equatorial Disc
     const centerGeom = new THREE.CircleGeometry(sRadius, 48);
     const centerMat = new THREE.MeshStandardMaterial({ color: '#06b6d4', side: THREE.DoubleSide });
     const centerMesh = new THREE.Mesh(centerGeom, centerMat);
     centerMesh.rotation.x = Math.PI / 2;
     group.add(centerMesh);
-    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(centerGeom), edgeMaterial).rotateX(Math.PI / 2));
-
-    if (showLabels) {
-      const topSprite = createTextSprite('उत्तरी अर्धगोला (2πr²)', '#500724', '#f472b6');
-      topSprite.position.set(0, topY + sRadius + 0.6, 0);
-      group.add(topSprite);
-
-      const midSprite = createTextSprite('केंद्रीय काट वृत्त (πr²)', '#083344', '#22d3ee');
-      midSprite.position.set(0, 0, sRadius + 1.2);
-      group.add(midSprite);
-
-      const botSprite = createTextSprite('दक्षिणी अर्धगोला (2πr²)', '#3b0764', '#c084fc');
-      botSprite.position.set(0, botY - sRadius - 0.6, 0);
-      group.add(botSprite);
-    }
     return;
   }
 
   // --------------------------------------------------------------------------
-  // Default Solid Rendering (when explodedParts === 0)
+  // Default Solid 3D Rendering (when unfoldP === 0 && explodedParts === 0)
   // --------------------------------------------------------------------------
   let geom: THREE.BufferGeometry;
 
@@ -920,12 +1194,10 @@ function renderMathShape(group: THREE.Group, params: ShapeParams) {
   mesh.receiveShadow = true;
   group.add(mesh);
 
-  // Add Edges / Outline
   const edges = new THREE.EdgesGeometry(geom);
   const line = new THREE.LineSegments(edges, edgeMaterial);
   group.add(line);
 
-  // Add Dimension Measurement Annotations (Height / Radius line markers)
   if (params.showDimensions) {
     addDimensionLines(group, params);
   }
@@ -1255,17 +1527,17 @@ function renderDiceScene(group: THREE.Group, params: Dice3DParams) {
     let backAngle = 0;
 
     if (stepByStepMode && unfoldStep !== undefined) {
-      // Step 0: All closed
-      // Step 1: Top opens
-      // Step 2: Bottom opens
-      // Step 3: Left opens
-      // Step 4: Right opens
-      // Step 5: Back opens (Full Flat Net)
+      // Step 0: All closed into a perfect 3D solid cube
+      // Step 1: Top opens 90° up to flat 2D
+      // Step 2: Bottom opens 90° down to flat 2D
+      // Step 3: Left opens 90° left to flat 2D
+      // Step 4: Right opens 90° right to flat 2D
+      // Step 5: Back opens 90° right from Right face (Full 2D Cross Net)
       topAngle = unfoldStep >= 1 ? 0 : -Math.PI / 2;
       bottomAngle = unfoldStep >= 2 ? 0 : Math.PI / 2;
-      leftAngle = unfoldStep >= 3 ? 0 : Math.PI / 2;
-      rightAngle = unfoldStep >= 4 ? 0 : -Math.PI / 2;
-      backAngle = unfoldStep >= 5 ? 0 : -Math.PI / 2;
+      leftAngle = unfoldStep >= 3 ? 0 : -Math.PI / 2;
+      rightAngle = unfoldStep >= 4 ? 0 : Math.PI / 2;
+      backAngle = unfoldStep >= 5 ? 0 : Math.PI / 2;
     } else {
       // Sequential Smooth Continuous Progress (0 to 1)
       const p = unfoldProgress;
@@ -1279,15 +1551,15 @@ function renderDiceScene(group: THREE.Group, params: Dice3DParams) {
 
       // Phase 3: Left (0.4 to 0.6)
       const pLeft = Math.min(1, Math.max(0, (p - 0.4) / 0.2));
-      leftAngle = (1 - pLeft) * (Math.PI / 2);
+      leftAngle = (1 - pLeft) * (-Math.PI / 2);
 
       // Phase 4: Right (0.6 to 0.8)
       const pRight = Math.min(1, Math.max(0, (p - 0.6) / 0.2));
-      rightAngle = (1 - pRight) * (-Math.PI / 2);
+      rightAngle = (1 - pRight) * (Math.PI / 2);
 
       // Phase 5: Back (0.8 to 1.0)
       const pBack = Math.min(1, Math.max(0, (p - 0.8) / 0.2));
-      backAngle = (1 - pBack) * (-Math.PI / 2);
+      backAngle = (1 - pBack) * (Math.PI / 2);
     }
 
     const createFaceBox = (

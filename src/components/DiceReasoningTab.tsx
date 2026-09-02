@@ -19,14 +19,24 @@ import {
   RotateCw,
   Sparkles,
   Trash2,
+  Maximize2,
+  X,
 } from 'lucide-react';
 import { SingleDiceView } from '../types';
 
 interface DiceReasoningTabProps {
   language: 'hi' | 'en';
+  diagramOnlyMode?: boolean;
+  onToggleDiagramOnly?: () => void;
+  onCancelDiagramOnly?: () => void;
 }
 
-export const DiceReasoningTab: React.FC<DiceReasoningTabProps> = ({ language }) => {
+export const DiceReasoningTab: React.FC<DiceReasoningTabProps> = ({
+  language,
+  diagramOnlyMode = false,
+  onToggleDiagramOnly,
+  onCancelDiagramOnly,
+}) => {
   const [subTab, setSubTab] = useState<'opposite_solver' | 'open_dice' | 'standard_vs_ordinary'>(
     'opposite_solver'
   );
@@ -362,10 +372,84 @@ export const DiceReasoningTab: React.FC<DiceReasoningTabProps> = ({ language }) 
     },
   ];
 
+  // =========================================================================
+  // ONLY DIAGRAM MODE (ZEN DIAGRAM VIEW)
+  // Everything else is hidden, only the 3D dice diagram is shown with a single cancel button
+  // =========================================================================
+  if (diagramOnlyMode) {
+    return (
+      <div className="fixed inset-0 z-[9999] w-screen h-screen bg-slate-950 flex flex-col justify-center items-center overflow-hidden select-none">
+        {/* Full Viewport 3D Canvas */}
+        <div className="w-full h-full">
+          <ThreeCanvas
+            mode="dice"
+            diceParams={{
+              diceList: diceList.slice(0, diceCount),
+              activeDiceIndex,
+              isUnfolded: subTab === 'open_dice',
+              unfoldProgress,
+            }}
+            language={language}
+          />
+        </div>
+
+        {/* 1. Only Button to Cancel / Exit Diagram Mode */}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            id="btn-cancel-diagram-mode-dice"
+            onClick={onCancelDiagramOnly}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs sm:text-sm shadow-2xl border-2 border-white/20 transition-all hover:scale-105 cursor-pointer backdrop-blur-md"
+            title="Exit Diagram Mode"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>{language === 'hi' ? 'डायग्राम मोड बंद करें (Esc)' : 'Exit Diagram Mode (Esc)'}</span>
+          </button>
+        </div>
+
+        {/* Floating Title Badge at Top Left */}
+        <div className="absolute top-4 left-4 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 py-2 text-xs font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none">
+          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse" />
+          <span>
+            {language === 'hi'
+              ? subTab === 'open_dice'
+                ? `पासा 3D नेट अनफोल्डिंग (स्टेप ${unfoldStep}/5)`
+                : `पासा 3D रीज़निंग (${diceCount} पासे)`
+              : subTab === 'open_dice'
+              ? `3D Dice Net Unfolding (Step ${unfoldStep}/5)`
+              : `3D Dice Reasoning (${diceCount} Dice)`}
+          </span>
+        </div>
+
+        {/* Floating Unfolding Step Controls at Bottom if in open_dice mode */}
+        {subTab === 'open_dice' && (
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-40 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs text-white shadow-2xl">
+            <span className="text-slate-400 font-semibold mr-1">{language === 'hi' ? 'स्टेप:' : 'Step:'}</span>
+            {[0, 1, 2, 3, 4, 5].map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setStepMode(true);
+                  setUnfoldStep(s);
+                }}
+                className={`w-7 h-7 rounded-lg text-xs font-bold font-mono transition-all ${
+                  unfoldStep === s
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30 scale-105'
+                    : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                {s === 0 ? 'बंद' : s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Sub Tab Navigation */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2 flex flex-wrap gap-2 backdrop-blur-md">
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2 flex flex-wrap items-center gap-2 backdrop-blur-md">
         <button
           onClick={() => setSubTab('opposite_solver')}
           className={`flex-1 min-w-[150px] py-2.5 px-4 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
@@ -404,6 +488,17 @@ export const DiceReasoningTab: React.FC<DiceReasoningTabProps> = ({ language }) 
         >
           <Lightbulb className="w-4 h-4" />
           <span>{language === 'hi' ? 'मानक vs साधारण पासा नियम' : 'Dice Concepts & Rules'}</span>
+        </button>
+
+        {/* Trigger Only Diagram Mode */}
+        <button
+          id="btn-trigger-only-diagram-dice"
+          onClick={onToggleDiagramOnly}
+          className="py-2 px-3 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+          title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
+        >
+          <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+          <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
         </button>
       </div>
 

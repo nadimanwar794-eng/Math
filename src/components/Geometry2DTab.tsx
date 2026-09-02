@@ -22,11 +22,15 @@ import {
   Sliders,
   ChevronDown,
   ChevronUp,
+  X,
 } from 'lucide-react';
 
 interface Geometry2DTabProps {
   language: 'hi' | 'en';
   projectorMode?: boolean;
+  diagramOnlyMode?: boolean;
+  onToggleDiagramOnly?: () => void;
+  onCancelDiagramOnly?: () => void;
 }
 
 const SHAPE_CATEGORIES = [
@@ -65,7 +69,13 @@ const SHAPE_CATEGORIES = [
   },
 ];
 
-export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({ language, projectorMode = false }) => {
+export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({
+  language,
+  projectorMode = false,
+  diagramOnlyMode = false,
+  onToggleDiagramOnly,
+  onCancelDiagramOnly,
+}) => {
   const [params, setParams] = useState<Geometry2DParams>({
     type: 'rhombus',
     sideA: 10,
@@ -995,6 +1005,50 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({ language, projecto
     }
   };
 
+  // =========================================================================
+  // ONLY DIAGRAM MODE (ZEN DIAGRAM VIEW)
+  // Everything else is hidden, only the 2D diagram is shown with a single cancel button
+  // =========================================================================
+  if (diagramOnlyMode) {
+    const currentShapeObj = SHAPE_CATEGORIES.flatMap((c) => c.shapes).find((s) => s.id === params.type);
+    return (
+      <div className="fixed inset-0 z-[9999] w-screen h-screen bg-slate-950 flex flex-col justify-center items-center overflow-hidden select-none">
+        {/* Full Viewport 2D SVG Canvas */}
+        <div className="w-full h-full flex items-center justify-center p-2 sm:p-6">
+          <div className="w-full max-w-6xl h-[88vh] rounded-3xl overflow-hidden border border-slate-800/80 bg-slate-950 shadow-2xl">
+            {renderGeometrySVG()}
+          </div>
+        </div>
+
+        {/* 1. Only Button to Cancel / Exit Diagram Mode */}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            id="btn-cancel-diagram-mode-2d"
+            onClick={onCancelDiagramOnly}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs sm:text-sm shadow-2xl border-2 border-white/20 transition-all hover:scale-105 cursor-pointer backdrop-blur-md"
+            title="Exit Diagram Mode"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>{language === 'hi' ? 'डायग्राम मोड बंद करें (Esc)' : 'Exit Diagram Mode (Esc)'}</span>
+          </button>
+        </div>
+
+        {/* Floating Title Badge at Top Left */}
+        <div className="absolute top-4 left-4 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 py-2 text-xs font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>{currentShapeObj?.nameHi || params.type} (2D Geometry Diagram)</span>
+        </div>
+
+        {/* Floating Quick Formulas Pill at Bottom Center */}
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-40 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-2xl px-4 py-2 flex items-center gap-4 text-xs text-white shadow-2xl">
+          <span className="text-amber-300 font-mono font-bold">Area = {metrics.area.toFixed(2)} cm²</span>
+          <span className="text-slate-500">|</span>
+          <span className="text-emerald-300 font-mono font-bold">Perimeter = {metrics.perimeter.toFixed(2)} cm</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex flex-col gap-5 ${projectorMode ? 'w-full max-w-full' : 'max-w-7xl mx-auto'}`}>
       {/* Top Banner / Teaching Header in Projector Mode */}
@@ -1020,6 +1074,14 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({ language, projecto
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              id="btn-trigger-only-diagram-2d-proj"
+              onClick={onToggleDiagramOnly}
+              className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md cursor-pointer"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
+            </button>
             <span className="px-3 py-1 rounded-xl bg-slate-950/80 border border-slate-700 text-indigo-300 font-mono text-xs font-bold">
               {metrics.area.toFixed(2)} cm² (क्षेत्रफल)
             </span>
@@ -1041,9 +1103,20 @@ export const Geometry2DTab: React.FC<Geometry2DTabProps> = ({ language, projecto
                 <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                 <span>{language === 'hi' ? '2D आकृति का चयन करें' : 'Select 2D Geometry Shape'}</span>
               </h2>
-              <span className="text-[11px] text-slate-400 font-medium">
-                {language === 'hi' ? '15+ आकृतियां • 100% ऑफ़लाइन' : '15+ Shapes • 100% Offline'}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  id="btn-trigger-only-diagram-2d"
+                  onClick={onToggleDiagramOnly}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                  title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
+                >
+                  <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
+                </button>
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {language === 'hi' ? '15+ आकृतियां • 100% ऑफ़लाइन' : '15+ Shapes • 100% Offline'}
+                </span>
+              </div>
             </div>
 
             <div className="space-y-2.5">

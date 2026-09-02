@@ -27,6 +27,8 @@ interface NavbarProps {
   setProjectorMode: (val: boolean) => void;
   focusMode: boolean;
   setFocusMode: (val: boolean | ((prev: boolean) => boolean)) => void;
+  diagramOnlyMode?: boolean;
+  onToggleDiagramOnly?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -38,6 +40,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   setProjectorMode,
   focusMode,
   setFocusMode,
+  diagramOnlyMode = false,
+  onToggleDiagramOnly,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -153,6 +157,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Eye className="w-3 h-3 text-emerald-400" />
             <span>{language === 'hi' ? 'मेनू दिखाएं' : 'Show Menu'}</span>
           </button>
+
+          {/* Only Diagram Button in Focus Pill */}
+          <button
+            id="btn-pill-only-diagram"
+            onClick={onToggleDiagramOnly}
+            className="flex items-center gap-1 text-[10px] sm:text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 px-2 py-0.5 rounded-full transition-all shadow-sm cursor-pointer"
+            title={language === 'hi' ? 'केवल डायग्राम मोड (सिर्फ डायग्राम दिखेगा)' : 'Only Diagram Mode'}
+          >
+            <Maximize2 className="w-3 h-3 text-white" />
+            <span>{language === 'hi' ? 'सिर्फ डायग्राम' : 'Only Diagram'}</span>
+          </button>
         </div>
       </header>
     );
@@ -202,10 +217,21 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {/* ONLY DIAGRAM MODE (ZEN DIAGRAM) BUTTON */}
+            <button
+              id="btn-only-diagram-mode"
+              onClick={onToggleDiagramOnly}
+              className="px-2 sm:px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/50 text-[11px] font-bold flex items-center gap-1 sm:gap-1.5 transition-all shadow-md hover:shadow-emerald-500/25 hover:scale-105 cursor-pointer"
+              title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं) - शॉर्टकट "D"' : 'Only Diagram Mode (Hide everything else) - Shortcut "D"'}
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-white" />
+              <span className="hidden xs:inline">{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
+            </button>
+
             {/* PWA 1-Click Install Button */}
             <PWAInstallButton language={language} variant="navbar" />
 
-            {/* FOCUS / CLEAN DIAGRAM MODE BUTTON */}
+            {/* FOCUS / CLEAN VIEW BUTTON */}
             <button
               id="btn-toggle-focus-mode"
               onClick={() => setFocusMode(true)}
@@ -213,7 +239,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               title={language === 'hi' ? 'टॉप बार छिपाएं और डायग्राम बड़ा करें' : 'Hide Top Bar for Maximum Diagram View'}
             >
               <EyeOff className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden md:inline">{language === 'hi' ? 'डायग्राम बड़ा करें' : 'Clean View'}</span>
+              <span className="hidden md:inline">{language === 'hi' ? 'क्लीन व्यू' : 'Clean View'}</span>
             </button>
 
             {/* 16:9 Projector Mode */}

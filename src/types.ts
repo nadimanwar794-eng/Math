@@ -28,6 +28,8 @@ export interface ShapeParams {
   explodedParts?: number; // 0 (combined) to 1 (fully separated parts)
   showLabels?: boolean;   // 3D labels for individual separated parts
   unrollNet?: boolean;    // unroll curved surface into flat 2D rectangle/sector
+  unfoldStep?: number;   // 0 (closed 3D) to max steps (2D net)
+  unfoldProgress?: number; // 0 (closed 3D) to 1 (full 2D flat net)
   aspectRatioMode?: 'standard' | '16:9' | 'fullscreen';
 }
 
@@ -47,7 +49,11 @@ export type Geometry2DShapeType =
   | 'circle'                // वृत्त
   | 'semicircle'            // अर्धवृत्त
   | 'ring'                  // वलय (Annulus)
-  | 'sector';               // त्रिज्यखंड
+  | 'sector'                // त्रिज्यखंड
+  | 'path_rectangle'        // आयत/वर्ग के चारों ओर या अंदर रास्ता (Pathway Around/Inside)
+  | 'path_cross'            // बीचो-बीच समकोण पर परस्पर काटते रास्ते (Cross-Paths in Center)
+  | 'path_circle'           // वृत्ताकार रास्ते व वलय (Circular Path / Annulus Track)
+  | 'running_track';        // धावन पथ / रनिंग ट्रैक (Athletic Running Track)
 
 export interface Geometry2DParams {
   type: Geometry2DShapeType;
@@ -59,6 +65,13 @@ export interface Geometry2DParams {
   diagonal2?: number;   // d2 for rhombus / kite
   angleDeg?: number;    // Angle in degrees (e.g. for parallelogram / sector)
   height?: number;      // Altitude / Height
+  pathWidth?: number;   // w (रास्ते की चौड़ाई / Path Width)
+  isInnerPath?: boolean;// true if path is inside field, false if outside
+  costPerSqUnit?: number; // रास्ते पर फर्श/बजरी/टाइल बिछाने की दर (₹/m²)
+  turfCostPerSqUnit?: number; // शेष लॉन/मैदान में घास लगाने की दर (₹/m²)
+  fenceCostPerUnit?: number; // चारदीवारी / तारबंदी की दर (₹/m)
+  straightLength?: number; // रनिंग ट्रैक के सीधे भाग की लंबाई L
+  trackLanes?: number;  // रनिंग ट्रैक में लेनों की संख्या
   showDiagonals: boolean;
   showAngles: boolean;
   showAltitudes: boolean;

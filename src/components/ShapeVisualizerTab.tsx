@@ -19,6 +19,7 @@ import {
   Split,
   Tv,
   Wand2,
+  X,
 } from 'lucide-react';
 
 interface ShapeVisualizerTabProps {
@@ -26,6 +27,9 @@ interface ShapeVisualizerTabProps {
   projectorMode?: boolean;
   focusMode?: boolean;
   onToggleFocus?: () => void;
+  diagramOnlyMode?: boolean;
+  onToggleDiagramOnly?: () => void;
+  onCancelDiagramOnly?: () => void;
 }
 
 export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
@@ -33,6 +37,9 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
   projectorMode = false,
   focusMode = false,
   onToggleFocus,
+  diagramOnlyMode = false,
+  onToggleDiagramOnly,
+  onCancelDiagramOnly,
 }) => {
   const [params, setParams] = useState<ShapeParams>({
     type: 'cylinder',
@@ -51,6 +58,8 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
     explodedParts: 0,
     showLabels: true,
     unrollNet: false,
+    unfoldStep: 0,
+    unfoldProgress: 0,
   });
 
   const [viewLayout, setViewLayout] = useState<'split' | 'widescreen169'>(projectorMode ? 'widescreen169' : 'split');
@@ -61,10 +70,95 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
     }
   }, [projectorMode]);
   const [isAutoExploding, setIsAutoExploding] = useState(false);
+  const [isAutoUnfolding, setIsAutoUnfolding] = useState(false);
   const [copiedFormula, setCopiedFormula] = useState<string | null>(null);
   const [isCompactSettingsOpen, setIsCompactSettingsOpen] = useState(false);
 
   const metrics = calculateShapeMetrics(params);
+
+  // Helper for shape unfold steps
+  const getShapeUnfoldSteps = (type: ShapeType, lang: 'hi' | 'en') => {
+    switch (type) {
+      case 'cube':
+      case 'cuboid':
+        return [
+          { step: 0, label: lang === 'hi' ? '3D ठोस (Solid Box)' : 'Solid Box', desc: lang === 'hi' ? 'सभी 6 फलक जुड़े हुए 3D रूप में' : 'All 6 faces closed in 3D' },
+          { step: 1, label: lang === 'hi' ? 'चरण 1: ऊपरी फलक (Top Face)' : 'Step 1: Top Face', desc: lang === 'hi' ? 'ऊपरी फलक 90° ऊपर 2D में खुला' : 'Top face unfolds upward' },
+          { step: 2, label: lang === 'hi' ? 'चरण 2: निचला फलक (Bottom Face)' : 'Step 2: Bottom Face', desc: lang === 'hi' ? 'निचला फलक 90° नीचे 2D में खुला' : 'Bottom face unfolds downward' },
+          { step: 3, label: lang === 'hi' ? 'चरण 3: बायां फलक (Left Face)' : 'Step 3: Left Face', desc: lang === 'hi' ? 'बायां फलक 90° बाईं ओर खुला' : 'Left face unfolds to the left' },
+          { step: 4, label: lang === 'hi' ? 'चरण 4: दायां फलक (Right Face)' : 'Step 4: Right Face', desc: lang === 'hi' ? 'दायां फलक 90° दाईं ओर खुला' : 'Right face unfolds to the right' },
+          { step: 5, label: lang === 'hi' ? 'चरण 5: पूर्ण 2D क्रॉस नेट (Full Net)' : 'Step 5: Full 2D Net', desc: lang === 'hi' ? 'पीछे का फलक खुला (कुल क्षेत्रफल = 2(lb+bh+hl))' : 'Back face opens, full 2D cross net formed' },
+        ];
+      case 'cylinder':
+        return [
+          { step: 0, label: lang === 'hi' ? '3D बंद बेलन (Solid Cylinder)' : 'Solid Cylinder', desc: lang === 'hi' ? 'पूर्ण 3D बेलन (ठोस)' : 'Complete 3D cylinder' },
+          { step: 1, label: lang === 'hi' ? 'चरण 1: ऊपरी वृत्त सिरा (Top: πr²)' : 'Step 1: Top Circle (πr²)', desc: lang === 'hi' ? 'ऊपरी वृत्ताकार ढक्कन अलग होकर 2D में आ गया' : 'Top lid detaches into 2D' },
+          { step: 2, label: lang === 'hi' ? 'चरण 2: निचला आधार वृत्त (Base: πr²)' : 'Step 2: Base Circle (πr²)', desc: lang === 'hi' ? 'निचला आधार वृत्त अलग होकर 2D में आ गया' : 'Bottom base detaches into 2D' },
+          { step: 3, label: lang === 'hi' ? 'चरण 3: वक्र पृष्ठ खुला (Unrolling)' : 'Step 3: Unrolling Mantle', desc: lang === 'hi' ? 'वक्र पृष्ठ सीम से खुलना शुरू हुआ' : 'Curved mantle begins unrolling' },
+          { step: 4, label: lang === 'hi' ? 'चरण 4: पूर्ण 2D आयत नेट (2πr × h)' : 'Step 4: Full 2D Sheet Net', desc: lang === 'hi' ? 'पूर्ण समतल 2D नेट (आयताकार शीट 2πr×h + 2 वृत्त πr²)' : 'Full 2D Net: 2πr × h rectangle + 2 circles' },
+        ];
+      case 'cone':
+        return [
+          { step: 0, label: lang === 'hi' ? '3D बंद शंकु (Solid Cone)' : 'Solid Cone', desc: lang === 'hi' ? 'पूर्ण 3D शंकु' : 'Complete 3D cone' },
+          { step: 1, label: lang === 'hi' ? 'चरण 1: आधार वृत्त (Base: πr²)' : 'Step 1: Base Circle (πr²)', desc: lang === 'hi' ? 'आधार वृत्त समतल 2D में खुला' : 'Base circle unfolds flat' },
+          { step: 2, label: lang === 'hi' ? 'चरण 2: वक्र पृष्ठ खुला (Sector: πrl)' : 'Step 2: Unrolling Sector (πrl)', desc: lang === 'hi' ? 'शंकु का वक्र पृष्ठ तिर्यक रेखा पर कटकर त्रिज्यखंड बना' : 'Slant mantle opens into circular sector' },
+          { step: 3, label: lang === 'hi' ? 'चरण 3: पूर्ण 2D नेट (Sector + Base)' : 'Step 3: Full 2D Net', desc: lang === 'hi' ? 'कुल पृष्ठीय क्षेत्रफल = πrl + πr²' : 'Total 2D Surface Net = πrl + πr²' },
+        ];
+      case 'pyramid':
+        return [
+          { step: 0, label: lang === 'hi' ? '3D बंद पिरामिड (Solid Pyramid)' : 'Solid Pyramid', desc: lang === 'hi' ? 'पूर्ण 3D पिरामिड' : 'Complete 3D pyramid' },
+          { step: 1, label: lang === 'hi' ? 'चरण 1: सामने का त्रिभुज खुला' : 'Step 1: Front Triangle', desc: lang === 'hi' ? 'सामने का त्रिभुजाकार फलक नीचे 2D में खुला' : 'Front triangle unfolds down' },
+          { step: 2, label: lang === 'hi' ? 'चरण 2: पीछे का त्रिभुज खुला' : 'Step 2: Back Triangle', desc: lang === 'hi' ? 'पीछे का त्रिभुजाकार फलक ऊपर 2D में खुला' : 'Back triangle unfolds up' },
+          { step: 3, label: lang === 'hi' ? 'चरण 3: बायां त्रिभुज खुला' : 'Step 3: Left Triangle', desc: lang === 'hi' ? 'बायां त्रिभुजाकार फलक बाईं ओर खुला' : 'Left triangle unfolds left' },
+          { step: 4, label: lang === 'hi' ? 'चरण 4: दायां त्रिभुज खुला' : 'Step 4: Right Triangle', desc: lang === 'hi' ? 'दायां त्रिभुजाकार फलक दाईं ओर खुला' : 'Right triangle unfolds right' },
+          { step: 5, label: lang === 'hi' ? 'चरण 5: पूर्ण 2D स्टार नेट (Star Net)' : 'Step 5: Full 2D Star Net', desc: lang === 'hi' ? 'केंद्रीय वर्ग a² + 4 समद्विबाहु त्रिभुज' : 'Central square a² + 4 triangle petals' },
+        ];
+      case 'prism':
+        return [
+          { step: 0, label: lang === 'hi' ? '3D बंद प्रिज्म (Solid Prism)' : 'Solid Prism', desc: lang === 'hi' ? 'पूर्ण 3D प्रिज्म' : 'Complete 3D prism' },
+          { step: 1, label: lang === 'hi' ? 'चरण 1: ऊपरी त्रिभुज सिरा खुला' : 'Step 1: Top Triangle', desc: lang === 'hi' ? 'ऊपरी त्रिभुजाकार सिरा ऊपर खुला' : 'Top triangular lid unfolds' },
+          { step: 2, label: lang === 'hi' ? 'चरण 2: निचला त्रिभुज आधार खुला' : 'Step 2: Bottom Triangle', desc: lang === 'hi' ? 'निचला त्रिभुजाकार आधार नीचे खुला' : 'Bottom triangle unfolds' },
+          { step: 3, label: lang === 'hi' ? 'चरण 3: बायां आयताकार फलक खुला' : 'Step 3: Left Rectangle', desc: lang === 'hi' ? 'बायां आयत 90° बाईं ओर खुला' : 'Left rectangle unfolds' },
+          { step: 4, label: lang === 'hi' ? 'चरण 4: दायां आयताकार फलक खुला' : 'Step 4: Right Rectangle', desc: lang === 'hi' ? 'दायां आयत 90° दाईं ओर खुला' : 'Right rectangle unfolds' },
+          { step: 5, label: lang === 'hi' ? 'चरण 5: पूर्ण 2D प्रिज्म नेट (Full Net)' : 'Step 5: Full 2D Net', desc: lang === 'hi' ? '3 संलग्न आयत + 2 त्रिभुज' : '3 adjacent rectangles + 2 triangular caps' },
+        ];
+      case 'frustum':
+        return [
+          { step: 0, label: lang === 'hi' ? '3D बंद छिन्नक (Solid Frustum)' : 'Solid Frustum', desc: lang === 'hi' ? 'पूर्ण 3D बाल्टी/छिन्नक' : 'Complete 3D frustum' },
+          { step: 1, label: lang === 'hi' ? 'चरण 1: ऊपरी वृत्त सिरा (πr₂²)' : 'Step 1: Top Circle (πr₂²)', desc: lang === 'hi' ? 'ऊपरी छोटा वृत्ताकार सिरा खुला' : 'Top circle unfolds' },
+          { step: 2, label: lang === 'hi' ? 'चरण 2: निचला आधार वृत्त (πr₁²)' : 'Step 2: Base Circle (πr₁²)', desc: lang === 'hi' ? 'निचला बड़ा वृत्ताकार सिरा खुला' : 'Bottom circle unfolds' },
+          { step: 3, label: lang === 'hi' ? 'चरण 3: तिर्यक वक्र पृष्ठ खुला' : 'Step 3: Lateral Band Unrolls', desc: lang === 'hi' ? 'वक्र पृष्ठ वलयाकार त्रिज्यखंड के रूप में खुला' : 'Slanted mantle opens into annular sector' },
+          { step: 4, label: lang === 'hi' ? 'चरण 4: पूर्ण 2D नेट (Full Net)' : 'Step 4: Full 2D Net', desc: lang === 'hi' ? 'कुल क्षेत्रफल = π(r₁+r₂)l + πr₁² + πr₂²' : 'Total Area = π(r₁+r₂)l + πr₁² + πr₂²' },
+        ];
+      default:
+        return [
+          { step: 0, label: lang === 'hi' ? '3D ठोस (Solid)' : 'Solid', desc: lang === 'hi' ? 'पूर्ण 3D आकृति' : 'Solid 3D shape' },
+          { step: 1, label: lang === 'hi' ? 'घटक विखंडन (Exploded)' : 'Exploded Parts', desc: lang === 'hi' ? '3D घटक अलग-अलग' : 'Separated 3D components' },
+          { step: 2, label: lang === 'hi' ? '2D समतल रूपांतरण (2D Net)' : '2D Transformation', desc: lang === 'hi' ? 'क्षेत्रफल व आयतन संबंध' : 'Surface area breakdown' },
+        ];
+    }
+  };
+
+  const unfoldSteps = getShapeUnfoldSteps(params.type, language);
+  const currentUnfoldStep = params.unfoldStep ?? 0;
+
+  // Auto-unfold animation step loop
+  useEffect(() => {
+    if (!isAutoUnfolding) return;
+    const maxS = unfoldSteps.length - 1;
+    const timer = setInterval(() => {
+      setParams((prev) => {
+        const curStep = prev.unfoldStep ?? 0;
+        const nextStep = curStep >= maxS ? 0 : curStep + 1;
+        return {
+          ...prev,
+          unfoldStep: nextStep,
+          unfoldProgress: nextStep / maxS,
+        };
+      });
+    }, 1600);
+    return () => clearInterval(timer);
+  }, [isAutoUnfolding, unfoldSteps.length]);
 
   // Auto-deconstruct oscillation loop
   useEffect(() => {
@@ -180,6 +274,62 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
   const csaArea = 2 * Math.PI * r * h;
   const tsaArea = csaArea + topBaseArea + botBaseArea;
 
+  // =========================================================================
+  // ONLY DIAGRAM MODE (ZEN DIAGRAM VIEW)
+  // Everything else is hidden, only the 3D solid diagram is shown with a single cancel button
+  // =========================================================================
+  if (diagramOnlyMode) {
+    const currentShape = shapeList.find((s) => s.type === params.type);
+    return (
+      <div className="fixed inset-0 z-[9999] w-screen h-screen bg-slate-950 flex flex-col justify-center items-center overflow-hidden select-none">
+        {/* Full Viewport 3D Canvas */}
+        <div className="w-full h-full">
+          <ThreeCanvas
+            mode="shape"
+            shapeParams={params}
+            language={language}
+          />
+        </div>
+
+        {/* 1. Only Button to Cancel / Exit Diagram Mode */}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            id="btn-cancel-diagram-mode-shape"
+            onClick={onCancelDiagramOnly}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs sm:text-sm shadow-2xl border-2 border-white/20 transition-all hover:scale-105 cursor-pointer backdrop-blur-md"
+            title="Exit Diagram Mode"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>{language === 'hi' ? 'डायग्राम मोड बंद करें (Esc)' : 'Exit Diagram Mode (Esc)'}</span>
+          </button>
+        </div>
+
+        {/* Floating Title Badge at Top Left */}
+        <div className="absolute top-4 left-4 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 py-2 text-xs font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none">
+          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse" />
+          <span>{currentShape?.nameHi || params.type} (3D Diagram)</span>
+        </div>
+
+        {/* Minimal Floating Explode Slider at Bottom Center if deconstructible */}
+        {(params.type === 'cylinder' || params.type === 'cone' || params.type === 'frustum' || params.type === 'cube' || params.type === 'cuboid') && (
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-40 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-2xl px-4 py-2 flex items-center gap-3 text-xs text-white shadow-2xl">
+            <span className="text-slate-300 font-semibold">{language === 'hi' ? 'घटक पृथक्करण:' : 'Deconstruct:'}</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.02"
+              value={params.explodedParts || 0}
+              onChange={(e) => setParams({ ...params, explodedParts: parseFloat(e.target.value) })}
+              className="w-28 sm:w-36 accent-indigo-500 h-1.5 cursor-pointer"
+            />
+            <span className="font-mono text-indigo-400 font-bold">{Math.round((params.explodedParts || 0) * 100)}%</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Top Header & Layout Mode Switcher */}
@@ -203,33 +353,45 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
           </div>
         </div>
 
-        {/* View Mode Switcher (16:9 Screen vs Split View) */}
-        <div className="flex items-center gap-1 p-0.5 bg-slate-950 border border-slate-800 rounded-lg">
+        {/* View Mode Switcher (16:9 Screen vs Split View + Only Diagram) */}
+        <div className="flex items-center gap-1.5">
           <button
-            id="btn-mode-split"
-            onClick={() => setViewLayout('split')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-              viewLayout === 'split'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+            id="btn-trigger-only-diagram-shapes"
+            onClick={onToggleDiagramOnly}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white transition-all shadow-sm cursor-pointer"
+            title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
           >
-            <Split className="w-3.5 h-3.5" />
-            <span>{language === 'hi' ? 'विभाजित' : 'Split'}</span>
+            <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
           </button>
 
-          <button
-            id="btn-mode-169"
-            onClick={() => setViewLayout('widescreen169')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-              viewLayout === 'widescreen169'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Tv className="w-3.5 h-3.5 text-cyan-300" />
-            <span>{language === 'hi' ? '16:9 स्क्रीन' : '16:9 View'}</span>
-          </button>
+          <div className="flex items-center gap-1 p-0.5 bg-slate-950 border border-slate-800 rounded-lg">
+            <button
+              id="btn-mode-split"
+              onClick={() => setViewLayout('split')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                viewLayout === 'split'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Split className="w-3.5 h-3.5" />
+              <span>{language === 'hi' ? 'विभाजित' : 'Split'}</span>
+            </button>
+
+            <button
+              id="btn-mode-169"
+              onClick={() => setViewLayout('widescreen169')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                viewLayout === 'widescreen169'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Tv className="w-3.5 h-3.5 text-cyan-300" />
+              <span>{language === 'hi' ? '16:9 स्क्रीन' : '16:9 View'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -573,6 +735,153 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
               <ThreeCanvas mode="shape" shapeParams={params} language={language} />
             </div>
 
+            {/* 3D to 2D Step-by-Step Net Unfolding Studio */}
+            <div className="bg-slate-900/95 border border-indigo-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-md">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📦➡️📄</span>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-indigo-300">
+                      {language === 'hi'
+                        ? '3D से 2D नेट अनफोल्डिंग लैब (Step-by-Step 3D to 2D Net)'
+                        : 'Step-by-Step 3D to 2D Net Unfolding Studio'}
+                    </h4>
+                    <p className="text-[11px] text-slate-400">
+                      {unfoldSteps[currentUnfoldStep]?.desc || (language === 'hi' ? 'ठोस से समतल 2D नेट' : 'Solid to 2D flat net')}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-950/80 px-2.5 py-1 rounded-lg border border-indigo-800/60">
+                  {language === 'hi' ? `चरण ${currentUnfoldStep}/${unfoldSteps.length - 1}` : `Step ${currentUnfoldStep}/${unfoldSteps.length - 1}`}
+                </span>
+              </div>
+
+              {/* Step Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5 my-3">
+                {unfoldSteps.map((s) => (
+                  <button
+                    key={s.step}
+                    onClick={() => {
+                      setIsAutoUnfolding(false);
+                      setIsAutoExploding(false);
+                      setParams({
+                        ...params,
+                        unfoldStep: s.step,
+                        unfoldProgress: s.step / (unfoldSteps.length - 1),
+                        explodedParts: 0,
+                      });
+                    }}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium border text-center transition-all truncate ${
+                      currentUnfoldStep === s.step
+                        ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-600/30'
+                        : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-700 hover:text-white'
+                    }`}
+                    title={s.label}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Smooth Progress Slider */}
+              <div className="space-y-2 pt-1">
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>{language === 'hi' ? '3D ठोस (0%)' : '3D Solid (0%)'}</span>
+                  <span className="text-indigo-300 font-mono font-bold">
+                    {Math.round((params.unfoldProgress || (currentUnfoldStep / (unfoldSteps.length - 1))) * 100)}% {language === 'hi' ? 'खुला हुआ' : 'Unfolded'}
+                  </span>
+                  <span>{language === 'hi' ? 'समतल 2D नेट (100%)' : 'Flat 2D Net (100%)'}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={params.unfoldProgress !== undefined ? params.unfoldProgress : currentUnfoldStep / (unfoldSteps.length - 1)}
+                  onChange={(e) => {
+                    setIsAutoUnfolding(false);
+                    setIsAutoExploding(false);
+                    const val = parseFloat(e.target.value);
+                    const stepIdx = Math.round(val * (unfoldSteps.length - 1));
+                    setParams({
+                      ...params,
+                      unfoldProgress: val,
+                      unfoldStep: stepIdx,
+                      explodedParts: 0,
+                    });
+                  }}
+                  className="w-full accent-indigo-400 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 text-xs border-t border-slate-800/80 mt-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setIsAutoUnfolding(false);
+                      const prevS = Math.max(0, currentUnfoldStep - 1);
+                      setParams({
+                        ...params,
+                        unfoldStep: prevS,
+                        unfoldProgress: prevS / (unfoldSteps.length - 1),
+                        explodedParts: 0,
+                      });
+                    }}
+                    disabled={currentUnfoldStep === 0}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 border border-slate-700 font-medium transition-all"
+                  >
+                    {language === 'hi' ? '◀ पिछला फलक' : '◀ Prev Face'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsAutoUnfolding(false);
+                      const nextS = Math.min(unfoldSteps.length - 1, currentUnfoldStep + 1);
+                      setParams({
+                        ...params,
+                        unfoldStep: nextS,
+                        unfoldProgress: nextS / (unfoldSteps.length - 1),
+                        explodedParts: 0,
+                      });
+                    }}
+                    disabled={currentUnfoldStep === unfoldSteps.length - 1}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white border border-indigo-400 font-medium transition-all"
+                  >
+                    {language === 'hi' ? 'अगला फलक खोलें ▶' : 'Next Face ▶'}
+                  </button>
+                  <button
+                    onClick={() => setIsAutoUnfolding(!isAutoUnfolding)}
+                    className={`px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition-all ${
+                      isAutoUnfolding
+                        ? 'bg-emerald-600 text-white border-emerald-400 animate-pulse'
+                        : 'bg-slate-800 text-indigo-300 hover:text-white border-slate-700'
+                    }`}
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    {isAutoUnfolding
+                      ? (language === 'hi' ? 'एनीमेशन रोकें' : 'Stop Animation')
+                      : (language === 'hi' ? 'ऑटो 3D ➔ 2D लूप' : 'Auto 3D ➔ 2D Loop')}
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setIsAutoUnfolding(false);
+                    setParams({
+                      ...params,
+                      unfoldStep: 0,
+                      unfoldProgress: 0,
+                      explodedParts: 0,
+                      unrollNet: false,
+                    });
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium transition-all"
+                >
+                  {language === 'hi' ? '🔄 3D ठोस बंद करें' : '🔄 Close to 3D'}
+                </button>
+              </div>
+            </div>
+
             {/* Exploded Parts Controller Card */}
             <div className="bg-slate-900/90 border border-amber-900/40 rounded-2xl p-4 shadow-xl backdrop-blur-md">
               <div className="flex items-center justify-between mb-2.5">
@@ -597,6 +906,7 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
                     value={params.explodedParts || 0}
                     onChange={(e) => {
                       setIsAutoExploding(false);
+                      setIsAutoUnfolding(false);
                       setParams({ ...params, explodedParts: parseFloat(e.target.value) });
                     }}
                     className="w-full accent-amber-400 bg-slate-800 h-2.5 rounded-lg cursor-pointer"
@@ -608,7 +918,8 @@ export const ShapeVisualizerTab: React.FC<ShapeVisualizerTabProps> = ({
                     <button
                       onClick={() => {
                         setIsAutoExploding(false);
-                        setParams({ ...params, explodedParts: 0.85 });
+                        setIsAutoUnfolding(false);
+                        setParams({ ...params, explodedParts: 0.85, unfoldStep: 0, unfoldProgress: 0 });
                       }}
                       className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-medium transition-all"
                     >

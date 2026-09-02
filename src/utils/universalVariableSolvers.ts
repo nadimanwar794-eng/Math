@@ -241,6 +241,741 @@ export const UNIVERSAL_FORMULA_MODULES: UniversalFormulaModule[] = [
     },
   },
 
+  // 1B. आयत व वर्ग के रास्ते (Pathways Around/Inside Rectangle & Square)
+  {
+    id: 'path_rectangle',
+    nameHi: 'आयत व वर्ग के रास्ते (Path Around / Inside)',
+    nameEn: 'Rectangle & Square Pathways',
+    categoryHi: '2D क्षेत्रमिति (2D Mensuration)',
+    categoryEn: '2D Geometry',
+    icon: '🛣️',
+    badge: 'A_path = 2w(l+b±2w)',
+    mainFormulaText: 'बाहरी रास्ता A = 2w(l + b + 2w) | भीतरी रास्ता A = 2w(l + b - 2w) | वर्ग का रास्ता = 4w(a ± w)',
+    descriptionHi: 'मैदान की लंबाई (l), चौड़ाई (b), रास्ते की चौड़ाई (w), स्थिति (0=बाहर, 1=अंदर), रास्ते का क्षेत्रफल (A_path), या दर (₹/मी²) भरें।',
+    descriptionEn: 'Enter field length, breadth, path width, position (0=outside, 1=inside), path area, or paving rate.',
+    variables: [
+      { key: 'length', symbol: 'l', labelHi: 'मैदान की लंबाई (Length l)', labelEn: 'Field Length (l)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'breadth', symbol: 'b', labelHi: 'मैदान की चौड़ाई (Breadth b / Side a)', labelEn: 'Field Breadth (b)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'pathWidth', symbol: 'w', labelHi: 'रास्ते की चौड़ाई (Path Width w)', labelEn: 'Path Width (w)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'isInside', symbol: 'Pos', labelHi: 'स्थिति (0=बाहर, 1=अंदर)', labelEn: 'Type (0=Outside, 1=Inside)', unitHi: '0 / 1', unitEn: '0 / 1' },
+      { key: 'pathArea', symbol: 'A_p', labelHi: 'रास्ते का क्षेत्रफल (Path Area)', labelEn: 'Path Area (A_p)', unitHi: 'मी² (m²)', unitEn: 'sq m' },
+      { key: 'ratePaving', symbol: 'Rate', labelHi: 'रास्ते की लागत दर (Rate ₹/m²)', labelEn: 'Paving Rate (₹/m²)', unitHi: '₹/मी²', unitEn: '₹/sq m' },
+    ],
+    presets: [
+      {
+        nameHi: 'l = 45m, b = 30m, w = 2.5m (बाहर) ⇒ रास्ता व ₹15/मी² पर खर्च',
+        nameEn: 'l = 45m, b = 30m, w = 2.5m (Outside) ⇒ Area & Cost @ ₹15/m²',
+        values: { length: 45, breadth: 30, pathWidth: 2.5, isInside: 0, pathArea: null, ratePaving: 15 },
+        descriptionHi: '45m × 30m मैदान के चारों ओर 2.5m चौड़े बाहरी रास्ते का क्षेत्रफल व लागत।',
+        descriptionEn: 'Area and cost of 2.5m wide outside path around 45m × 30m field.',
+      },
+      {
+        nameHi: 'l = 60m, b = 40m, w = 3m (अंदर) ⇒ रास्ता व भीतरी लॉन',
+        nameEn: 'l = 60m, b = 40m, w = 3m (Inside) ⇒ Path & Lawn Area',
+        values: { length: 60, breadth: 40, pathWidth: 3, isInside: 1, pathArea: null, ratePaving: 20 },
+        descriptionHi: '60m × 40m मैदान के अंदर की ओर 3m चौड़े रास्ते का क्षेत्रफल व शेष लॉन।',
+        descriptionEn: 'Area of 3m wide inside path and remaining lawn in 60m × 40m field.',
+      },
+      {
+        nameHi: 'वर्ग a = 30m, w = 2m (बाहर) ⇒ रास्ते का क्षेत्रफल',
+        nameEn: 'Square a = 30m, w = 2m (Outside) ⇒ Path Area',
+        values: { length: 30, breadth: 30, pathWidth: 2, isInside: 0, pathArea: null, ratePaving: null },
+        descriptionHi: '30m भुजा वाले वर्गाकार पार्क के बाहर 2m रास्ते का क्षेत्रफल (4w(a+w))।',
+        descriptionEn: 'Square park 30m with 2m outside path.',
+      },
+      {
+        nameHi: 'l = 50m, b = 40m, A_path = 576m² ⇒ रास्ते की चौड़ाई (w) निकालें',
+        nameEn: 'l = 50m, b = 40m, A_path = 576m² ⇒ Find Path Width (w)',
+        values: { length: 50, breadth: 40, pathWidth: null, isInside: 0, pathArea: 576, ratePaving: null },
+        descriptionHi: 'रास्ते का क्षेत्रफल 576m² दिया है, रास्ते की चौड़ाई w ज्ञात करना।',
+        descriptionEn: 'Given path area 576 sq m, find path width w.',
+      },
+    ],
+    solve: (inputs) => {
+      const l = inputs.length;
+      const b = inputs.breadth || inputs.length; // defaults to square if breadth not given
+      let w = inputs.pathWidth;
+      const isInside = inputs.isInside === 1;
+      let pathArea = inputs.pathArea;
+      const rate = inputs.ratePaving ?? 15;
+
+      const givenData: { labelHi: string; labelEn: string; value: string }[] = [];
+      const stepsHi: string[] = [];
+      const stepsEn: string[] = [];
+      const formulas: string[] = [];
+
+      if (l !== null && l !== undefined) givenData.push({ labelHi: 'लंबाई (Length l)', labelEn: 'Length (l)', value: `${l} मी` });
+      if (b !== null && b !== undefined) givenData.push({ labelHi: 'चौड़ाई (Breadth b)', labelEn: 'Breadth (b)', value: `${b} मी` });
+      if (w !== null && w !== undefined) givenData.push({ labelHi: 'रास्ते की चौड़ाई (w)', labelEn: 'Path Width (w)', value: `${w} मी` });
+      givenData.push({ labelHi: 'रास्ते की स्थिति', labelEn: 'Position', value: isInside ? 'अंदर की ओर (Inside)' : 'बाहर की ओर (Outside)' });
+      if (pathArea !== null && pathArea !== undefined) givenData.push({ labelHi: 'रास्ते का क्षेत्रफल', labelEn: 'Path Area', value: `${pathArea} मी²` });
+      if (inputs.ratePaving) givenData.push({ labelHi: 'दर (Rate)', labelEn: 'Rate', value: `₹${inputs.ratePaving}/मी²` });
+
+      // Case 1: Given l, b, pathArea and need to find w (Quadratic equation solving)
+      if (l && b && pathArea && (w === null || w === undefined)) {
+        if (!isInside) {
+          // 4w^2 + 2(l+b)w - pathArea = 0
+          const A_quad = 4;
+          const B_quad = 2 * (l + b);
+          const C_quad = -pathArea;
+          const disc = B_quad * B_quad - 4 * A_quad * C_quad;
+          if (disc >= 0) {
+            w = (-B_quad + Math.sqrt(disc)) / (2 * A_quad);
+            stepsHi.push(`चरण 1: बाहरी रास्ते का सूत्र: A = 2w(l + b + 2w) = 4w² + 2(l + b)w`);
+            stepsHi.push(`चरण 2: मान रखने पर: 4w² + 2(${l} + ${b})w = ${pathArea} ⇒ 4w² + ${2 * (l + b)}w - ${pathArea} = 0`);
+            stepsHi.push(`चरण 3 (द्विघात सूत्र): w = [-B ± √(B² - 4AC)] / 2A`);
+            stepsHi.push(`चरण 4: w = [ -${B_quad} + √(${B_quad * B_quad} - 4(4)(${C_quad})) ] / 8 = ${w.toFixed(2)} मी`);
+            stepsEn.push(`Step 1: Formula: A_path = 4w² + 2(l + b)w`);
+            stepsEn.push(`Step 2: 4w² + ${2 * (l + b)}w - ${pathArea} = 0`);
+            stepsEn.push(`Step 3: Solving quadratic equation gives w = ${w.toFixed(2)} m`);
+            formulas.push('4w² + 2(l+b)w - A = 0', 'w = [-b + √(b²-4ac)] / 2a');
+          }
+        } else {
+          // Inside: 4w^2 - 2(l+b)w + pathArea = 0
+          const A_quad = 4;
+          const B_quad = -2 * (l + b);
+          const C_quad = pathArea;
+          const disc = B_quad * B_quad - 4 * A_quad * C_quad;
+          if (disc >= 0) {
+            w = (-B_quad - Math.sqrt(disc)) / (2 * A_quad);
+            stepsHi.push(`चरण 1: भीतरी रास्ते का सूत्र: A = 2w(l + b - 2w) = 2(l + b)w - 4w²`);
+            stepsHi.push(`चरण 2: 4w² - ${2 * (l + b)}w + ${pathArea} = 0`);
+            stepsHi.push(`चरण 3: द्विघात हल करने पर: w = ${w.toFixed(2)} मी`);
+            stepsEn.push(`Step 1: Formula: 4w² - 2(l + b)w + A_path = 0`);
+            stepsEn.push(`Step 2: Solving quadratic equation gives w = ${w.toFixed(2)} m`);
+            formulas.push('4w² - 2(l+b)w + A = 0');
+          }
+        }
+      }
+
+      // Case 2: Given l, b, w -> calculate everything
+      if (l && b && w !== null && w !== undefined && w > 0) {
+        let outerL = 0;
+        let outerB = 0;
+        let innerL = 0;
+        let innerB = 0;
+
+        if (!isInside) {
+          innerL = l;
+          innerB = b;
+          outerL = l + 2 * w;
+          outerB = b + 2 * w;
+          const outerA = outerL * outerB;
+          const innerA = innerL * innerB;
+          pathArea = outerA - innerA;
+
+          stepsHi.push(`चरण 1 (बाहरी विमाएं): रास्ते सहित बाहरी लंबाई L = ${l} + 2(${w}) = ${outerL} मी, चौड़ाई B = ${b} + 2(${w}) = ${outerB} मी`);
+          stepsHi.push(`चरण 2 (क्षेत्रफल गणना):`);
+          stepsHi.push(`• बाहरी कुल क्षेत्रफल = ${outerL} × ${outerB} = ${outerA.toFixed(2)} मी²`);
+          stepsHi.push(`• भीतरी मूल मैदान = ${innerL} × ${innerB} = ${innerA.toFixed(2)} मी²`);
+          stepsHi.push(`चरण 3 (रास्ते का क्षेत्रफल): A = बाहरी क्षेत्रफल - भीतरी क्षेत्रफल = ${outerA.toFixed(2)} - ${innerA.toFixed(2)} = ${pathArea.toFixed(2)} मी²`);
+          stepsHi.push(`शॉर्टकट सूत्र: 2w(l + b + 2w) = 2(${w}) × (${l} + ${b} + 2(${w})) = ${pathArea.toFixed(2)} मी²`);
+
+          stepsEn.push(`Step 1 (Outer Dimensions): L = ${l} + 2(${w}) = ${outerL} m, B = ${b} + 2(${w}) = ${outerB} m`);
+          stepsEn.push(`Step 2: Outer Area = ${outerL} × ${outerB} = ${outerA.toFixed(2)} sq m, Inner Field = ${innerL} × ${innerB} = ${innerA.toFixed(2)} sq m`);
+          stepsEn.push(`Step 3: Path Area = Outer Area - Inner Area = ${pathArea.toFixed(2)} sq m`);
+          stepsEn.push(`Direct Shortcut: 2w(l + b + 2w) = ${pathArea.toFixed(2)} m²`);
+          formulas.push('A_outside = 2w(l + b + 2w)', 'L = l + 2w', 'B = b + 2w');
+        } else {
+          outerL = l;
+          outerB = b;
+          innerL = Math.max(0, l - 2 * w);
+          innerB = Math.max(0, b - 2 * w);
+          const outerA = outerL * outerB;
+          const innerA = innerL * innerB;
+          pathArea = outerA - innerA;
+
+          stepsHi.push(`चरण 1 (भीतरी लॉन की विमाएं): l' = ${l} - 2(${w}) = ${innerL} मी, b' = ${b} - 2(${w}) = ${innerB} मी`);
+          stepsHi.push(`चरण 2 (क्षेत्रफल गणना):`);
+          stepsHi.push(`• मूल मैदान का क्षेत्रफल = ${outerL} × ${outerB} = ${outerA.toFixed(2)} मी²`);
+          stepsHi.push(`• भीतरी लॉन का क्षेत्रफल = ${innerL} × ${innerB} = ${innerA.toFixed(2)} मी²`);
+          stepsHi.push(`चरण 3 (रास्ते का क्षेत्रफल): A = कुल क्षेत्रफल - लॉन का क्षेत्रफल = ${outerA.toFixed(2)} - ${innerA.toFixed(2)} = ${pathArea.toFixed(2)} मी²`);
+          stepsHi.push(`शॉर्टकट सूत्र: 2w(l + b - 2w) = 2(${w}) × (${l} + ${b} - 2(${w})) = ${pathArea.toFixed(2)} मी²`);
+
+          stepsEn.push(`Step 1 (Inner Lawn Dimensions): l' = ${l} - 2(${w}) = ${innerL} m, b' = ${b} - 2(${w}) = ${innerB} m`);
+          stepsEn.push(`Step 2: Field Area = ${outerL} × ${outerB} = ${outerA.toFixed(2)} sq m, Lawn Area = ${innerL} × ${innerB} = ${innerA.toFixed(2)} sq m`);
+          stepsEn.push(`Step 3: Path Area = Field Area - Lawn Area = ${pathArea.toFixed(2)} sq m`);
+          stepsEn.push(`Direct Shortcut: 2w(l + b - 2w) = ${pathArea.toFixed(2)} m²`);
+          formulas.push('A_inside = 2w(l + b - 2w)', 'l\' = l - 2w', 'b\' = b - 2w');
+        }
+
+        const totalCost = pathArea * rate;
+        const outerPerimeter = 2 * (outerL + outerB);
+        const innerPerimeter = 2 * (innerL + innerB);
+
+        stepsHi.push(`\n[लागत एवं बाउंड्री खर्च]:`);
+        stepsHi.push(`• रास्ते पर टाइल/फर्श बिछाने का खर्च (@ ₹${rate}/मी²) = ${pathArea.toFixed(2)} × ${rate} = ₹${totalCost.toFixed(2)}`);
+        stepsHi.push(`• बाहरी बाउंड्री परिमाप = 2(${outerL} + ${outerB}) = ${outerPerimeter.toFixed(2)} मी`);
+        stepsHi.push(`• भीतरी बाउंड्री परिमाप = 2(${innerL} + ${innerB}) = ${innerPerimeter.toFixed(2)} मी`);
+
+        stepsEn.push(`\n[Cost & Boundary]:`);
+        stepsEn.push(`• Paving Cost (@ ₹${rate}/sq m) = ${pathArea.toFixed(2)} × ${rate} = ₹${totalCost.toFixed(2)}`);
+        stepsEn.push(`• Outer Perimeter = ${outerPerimeter.toFixed(2)} m`);
+        stepsEn.push(`• Inner Perimeter = ${innerPerimeter.toFixed(2)} m`);
+
+        return {
+          titleHi: `रास्ते का संपूर्ण हल (${isInside ? 'भीतरी रास्ता' : 'बाहरी रास्ता'}, चौड़ाई = ${w.toFixed(2)} मी)`,
+          titleEn: `Pathway Complete Solution (${isInside ? 'Inside Path' : 'Outside Path'}, Width = ${w.toFixed(2)} m)`,
+          category: '2D Mensuration: रास्ते एवं लॉन',
+          givenData,
+          toFindHi: 'रास्ते का क्षेत्रफल, चौड़ाई व कुल लागत',
+          toFindEn: 'Path Area, Width, and Total Cost',
+          stepsHi,
+          stepsEn,
+          finalAnswerHi: `रास्ते का क्षेत्रफल = ${pathArea.toFixed(2)} वर्ग मीटर | रास्ते की चौड़ाई = ${w.toFixed(2)} मी | लागत (@ ₹${rate}/मी²) = ₹${totalCost.toFixed(2)}`,
+          finalAnswerEn: `Path Area = ${pathArea.toFixed(2)} sq m | Path Width = ${w.toFixed(2)} m | Cost (@ ₹${rate}/m²) = ₹${totalCost.toFixed(2)}`,
+          formulasUsed: formulas,
+          tipsHi: 'याद रखें: बाहरी रास्ते में 2w जुड़ता है: 2w(l+b+2w); भीतरी रास्ते में 2w घटता है: 2w(l+b-2w)।',
+          tipsEn: 'Remember: Outside path adds 2w: 2w(l+b+2w); Inside path subtracts 2w: 2w(l+b-2w).',
+        };
+      }
+
+      return {
+        titleHi: 'आयत/वर्ग का रास्ता: मान भरें',
+        titleEn: 'Pathways: Enter Values',
+        category: '2D Mensuration',
+        givenData: givenData.length ? givenData : [{ labelHi: 'स्थिति', labelEn: 'Status', value: 'मान भरें' }],
+        toFindHi: 'लंबाई l, चौड़ाई b व रास्ते की चौड़ाई w भरें',
+        toFindEn: 'Enter Length l, Breadth b and Path Width w',
+        stepsHi: ['कृपया मैदान की लंबाई, चौड़ाई और रास्ते की चौड़ाई भरें या क्विक प्रीसेट चुनें।'],
+        stepsEn: ['Please enter field dimensions and path width or choose a preset.'],
+        finalAnswerHi: 'कृपया मान भरें।',
+        finalAnswerEn: 'Please enter values.',
+        formulasUsed: ['A_outside = 2w(l + b + 2w)', 'A_inside = 2w(l + b - 2w)'],
+      };
+    },
+  },
+
+  // 1C. बीचो-बीच समकोण पर काटते रास्ते (Cross-Paths / Crossroads in Center)
+  {
+    id: 'path_cross',
+    nameHi: 'बीचो-बीच क्रॉस रास्ते (Crossroads in Center)',
+    nameEn: 'Crossroads in Center',
+    categoryHi: '2D क्षेत्रमिति (2D Mensuration)',
+    categoryEn: '2D Geometry',
+    icon: '➕',
+    badge: 'A_cross = w(l + b - w)',
+    mainFormulaText: 'क्रॉस रास्ते का क्षेत्रफल A = w(l + b - w) | शेष 4 लॉन का क्षेत्रफल = (l - w)(b - w)',
+    descriptionHi: 'आयताकार/वर्गाकार मैदान के बीचो-बीच परस्पर समकोण पर काटती सड़कों का क्षेत्रफल व लॉन की लागत।',
+    descriptionEn: 'Area of 2 perpendicular intersecting roads in the middle and remaining lawn area.',
+    variables: [
+      { key: 'length', symbol: 'l', labelHi: 'मैदान की लंबाई (Length l)', labelEn: 'Field Length (l)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'breadth', symbol: 'b', labelHi: 'मैदान की चौड़ाई (Breadth b)', labelEn: 'Field Breadth (b)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'pathWidth', symbol: 'w', labelHi: 'रास्ते की चौड़ाई (Road Width w)', labelEn: 'Road Width (w)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'pathArea', symbol: 'A_c', labelHi: 'क्रॉस रास्ते का क्षेत्रफल', labelEn: 'Crossroads Area', unitHi: 'मी² (m²)', unitEn: 'sq m' },
+      { key: 'lawnArea', symbol: 'A_lawn', labelHi: 'शेष 4 लॉन का कुल क्षेत्रफल', labelEn: 'Remaining Lawn Area', unitHi: 'मी² (m²)', unitEn: 'sq m' },
+      { key: 'ratePaving', symbol: 'Rate', labelHi: 'सड़क लागत दर (₹/m²)', labelEn: 'Paving Rate (₹/m²)', unitHi: '₹/मी²', unitEn: '₹/sq m' },
+    ],
+    presets: [
+      {
+        nameHi: 'l = 70m, b = 50m, w = 5m ⇒ क्रॉस सड़कें व लॉन का क्षेत्रफल',
+        nameEn: 'l = 70m, b = 50m, w = 5m ⇒ Crossroads & Lawn Area',
+        values: { length: 70, breadth: 50, pathWidth: 5, pathArea: null, lawnArea: null, ratePaving: 20 },
+        descriptionHi: '70m × 50m मैदान में बीचो-बीच 5m चौड़ी दो परस्पर काटती सड़कें।',
+        descriptionEn: 'Two 5m cross roads in 70m × 50m park.',
+      },
+      {
+        nameHi: 'l = 80m, b = 60m, w = 4m ⇒ सड़क खर्च @ ₹25/मी²',
+        nameEn: 'l = 80m, b = 60m, w = 4m ⇒ Cost @ ₹25/m²',
+        values: { length: 80, breadth: 60, pathWidth: 4, pathArea: null, lawnArea: null, ratePaving: 25 },
+        descriptionHi: '80m × 60m मैदान में 4m चौड़े क्रॉस रास्ते पर बजरी बिछाने का खर्च।',
+        descriptionEn: 'Paving cost of 4m crossroads in 80m × 60m field.',
+      },
+      {
+        nameHi: 'वर्ग a = 60m, w = 3m ⇒ क्रॉस रास्ता व 4 लॉन',
+        nameEn: 'Square a = 60m, w = 3m ⇒ Cross Roads & 4 Lawns',
+        values: { length: 60, breadth: 60, pathWidth: 3, pathArea: null, lawnArea: null, ratePaving: null },
+        descriptionHi: '60m भुजा वाले वर्गाकार मैदान में बीचो-बीच 3m चौड़ी क्रॉस सड़कें।',
+        descriptionEn: '3m crossroads in 60m square field.',
+      },
+    ],
+    solve: (inputs) => {
+      const l = inputs.length;
+      const b = inputs.breadth || inputs.length;
+      const w = inputs.pathWidth;
+      const rate = inputs.ratePaving ?? 20;
+
+      const givenData: { labelHi: string; labelEn: string; value: string }[] = [];
+      const stepsHi: string[] = [];
+      const stepsEn: string[] = [];
+      const formulas: string[] = [];
+
+      if (l) givenData.push({ labelHi: 'लंबाई (Length l)', labelEn: 'Length (l)', value: `${l} मी` });
+      if (b) givenData.push({ labelHi: 'चौड़ाई (Breadth b)', labelEn: 'Breadth (b)', value: `${b} मी` });
+      if (w) givenData.push({ labelHi: 'सड़क की चौड़ाई (w)', labelEn: 'Road Width (w)', value: `${w} मी` });
+      if (inputs.ratePaving) givenData.push({ labelHi: 'दर (Rate)', labelEn: 'Rate', value: `₹${inputs.ratePaving}/मी²` });
+
+      if (l && b && w) {
+        const areaRoadL = l * w;
+        const areaRoadB = b * w;
+        const areaSquareCommon = w * w;
+        const crossArea = areaRoadL + areaRoadB - areaSquareCommon; // w(l + b - w)
+        const totalFieldArea = l * b;
+        const lawnArea = (l - w) * (b - w);
+        const singleLawnArea = lawnArea / 4;
+        const totalCost = crossArea * rate;
+
+        stepsHi.push(`चरण 1 (लंबाई के समानांतर सड़क): क्षेत्रफल = l × w = ${l} × ${w} = ${areaRoadL.toFixed(2)} मी²`);
+        stepsHi.push(`चरण 2 (चौड़ाई के समानांतर सड़क): क्षेत्रफल = b × w = ${b} × ${w} = ${areaRoadB.toFixed(2)} मी²`);
+        stepsHi.push(`चरण 3 (उभयनिष्ठ चौराहे का क्षेत्रफल): A_center = w² = ${w}² = ${areaSquareCommon.toFixed(2)} मी²`);
+        stepsHi.push(`चरण 4 (कुल क्रॉस सड़क का क्षेत्रफल): A = (l × w) + (b × w) - w² = ${areaRoadL.toFixed(2)} + ${areaRoadB.toFixed(2)} - ${areaSquareCommon.toFixed(2)} = ${crossArea.toFixed(2)} मी²`);
+        stepsHi.push(`शॉर्टकट सूत्र: w(l + b - w) = ${w} × (${l} + ${b} - ${w}) = ${crossArea.toFixed(2)} मी²`);
+        stepsHi.push(`चरण 5 (शेष 4 लॉन का कुल क्षेत्रफल): (l - w)(b - w) = (${l} - ${w}) × (${b} - ${w}) = ${lawnArea.toFixed(2)} मी²`);
+        stepsHi.push(`• प्रत्येक 1 लॉन कोने का क्षेत्रफल = ${lawnArea.toFixed(2)} / 4 = ${singleLawnArea.toFixed(2)} मी²`);
+        stepsHi.push(`\n[लागत गणना]:`);
+        stepsHi.push(`• सड़क पक्की करने का कुल खर्च (@ ₹${rate}/मी²) = ${crossArea.toFixed(2)} × ${rate} = ₹${totalCost.toFixed(2)}`);
+
+        stepsEn.push(`Step 1 (Road || Length): Area = l × w = ${l} × ${w} = ${areaRoadL.toFixed(2)} sq m`);
+        stepsEn.push(`Step 2 (Road || Breadth): Area = b × w = ${b} × ${w} = ${areaRoadB.toFixed(2)} sq m`);
+        stepsEn.push(`Step 3 (Center Intersection): Area = w² = ${w}² = ${areaSquareCommon.toFixed(2)} sq m`);
+        stepsEn.push(`Step 4 (Total Crossroads Area): lw + bw - w² = ${crossArea.toFixed(2)} sq m`);
+        stepsEn.push(`Direct Formula: w(l + b - w) = ${crossArea.toFixed(2)} m²`);
+        stepsEn.push(`Step 5 (Remaining 4 Lawns Area): (l - w)(b - w) = ${lawnArea.toFixed(2)} sq m`);
+        stepsEn.push(`• Area of each single lawn corner = ${singleLawnArea.toFixed(2)} sq m`);
+        stepsEn.push(`Paving Cost (@ ₹${rate}/m²) = ₹${totalCost.toFixed(2)}`);
+
+        formulas.push('A_cross = w(l + b - w)', 'A_lawn = (l - w)(b - w)', 'Cost = A_cross × Rate');
+
+        return {
+          titleHi: `क्रॉस रास्तों का हल (लंबाई = ${l} मी, चौड़ाई = ${b} मी, सड़क = ${w} मी)`,
+          titleEn: `Crossroads Solution (l = ${l} m, b = ${b} m, w = ${w} m)`,
+          category: '2D Mensuration: क्रॉस सड़कें',
+          givenData,
+          toFindHi: 'सड़कों का क्षेत्रफल, लॉन का क्षेत्रफल व लागत',
+          toFindEn: 'Crossroads Area, Lawn Area, and Paving Cost',
+          stepsHi,
+          stepsEn,
+          finalAnswerHi: `क्रॉस रास्तों का क्षेत्रफल = ${crossArea.toFixed(2)} मी² | शेष 4 लॉन का क्षेत्रफल = ${lawnArea.toFixed(2)} मी² (प्रत्येक = ${singleLawnArea.toFixed(2)} मी²) | कुल खर्च (@ ₹${rate}/मी²) = ₹${totalCost.toFixed(2)}`,
+          finalAnswerEn: `Crossroads Area = ${crossArea.toFixed(2)} sq m | Remaining Lawns = ${lawnArea.toFixed(2)} sq m (each = ${singleLawnArea.toFixed(2)} sq m) | Cost = ₹${totalCost.toFixed(2)}`,
+          formulasUsed: formulas,
+          tipsHi: 'बीच के वर्ग w² को 1 बार घटाया जाता है क्योंकि दोनों सड़कें वहां मिलती हैं।',
+          tipsEn: 'Subtract w² once to eliminate overlapping intersection.',
+        };
+      }
+
+      return {
+        titleHi: 'क्रॉस सड़कें: मान भरें',
+        titleEn: 'Crossroads: Enter Values',
+        category: '2D Mensuration',
+        givenData: [{ labelHi: 'स्थिति', labelEn: 'Status', value: 'मान भरें' }],
+        toFindHi: 'लंबाई l, चौड़ाई b और सड़क की चौड़ाई w भरें',
+        toFindEn: 'Enter Length, Breadth and Road Width',
+        stepsHi: ['कृपया मैदान की विमाएं भरें।'],
+        stepsEn: ['Please enter dimensions.'],
+        finalAnswerHi: 'कृपया मान भरें।',
+        finalAnswerEn: 'Please enter values.',
+        formulasUsed: ['A_cross = w(l + b - w)'],
+      };
+    },
+  },
+
+  // 1D. वृत्ताकार रास्ता व वलय (Circular Path / Ring / Annulus)
+  {
+    id: 'path_circle_annulus',
+    nameHi: 'वृत्ताकार रास्ता व वलय (Circular Path / Ring)',
+    nameEn: 'Circular Path & Annulus Ring',
+    categoryHi: '2D क्षेत्रमिति (2D Mensuration)',
+    categoryEn: '2D Geometry',
+    icon: '🎯',
+    badge: 'A = π(R² - r²) = πw(2r+w)',
+    mainFormulaText: 'रास्ते का क्षेत्रफल A = π(R² - r²) = πw(2r + w) | परिधियों का अंतर = 2πw',
+    descriptionHi: 'भीतरी त्रिज्या (r), बाहरी त्रिज्या (R), रास्ते की चौड़ाई (w), परिधियों का अंतर (ΔC), या लागत की गणना।',
+    descriptionEn: 'Calculate circular path area, inner/outer radii, width, difference in circumferences, and cost.',
+    variables: [
+      { key: 'radiusInner', symbol: 'r', labelHi: 'भीतरी त्रिज्या (Inner Radius r)', labelEn: 'Inner Radius (r)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'radiusOuter', symbol: 'R', labelHi: 'बाहरी त्रिज्या (Outer Radius R)', labelEn: 'Outer Radius (R)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'pathWidth', symbol: 'w', labelHi: 'रास्ते की चौड़ाई (Width w)', labelEn: 'Path Width (w)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'circDiff', symbol: 'ΔC', labelHi: 'परिधियों का अंतर (ΔC = 2πw)', labelEn: 'Circumference Diff (ΔC)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'pathArea', symbol: 'A', labelHi: 'रास्ते का क्षेत्रफल (Path Area)', labelEn: 'Path Area (A)', unitHi: 'मी² (m²)', unitEn: 'sq m' },
+      { key: 'ratePaving', symbol: 'Rate', labelHi: 'लागत दर (₹/m²)', labelEn: 'Paving Rate (₹/m²)', unitHi: '₹/मी²', unitEn: '₹/sq m' },
+    ],
+    presets: [
+      {
+        nameHi: 'r = 14m, w = 3.5m ⇒ रास्ते का क्षेत्रफल व परिधियों का अंतर',
+        nameEn: 'r = 14m, w = 3.5m ⇒ Area & Circumference Diff',
+        values: { radiusInner: 14, radiusOuter: null, pathWidth: 3.5, circDiff: null, pathArea: null, ratePaving: 25 },
+        descriptionHi: '14m त्रिज्या वाले वृत्ताकार पार्क के बाहर 3.5m चौड़ा रास्ता।',
+        descriptionEn: '3.5m path around 14m circular park.',
+      },
+      {
+        nameHi: 'परिधियों का अंतर ΔC = 44m ⇒ रास्ते की चौड़ाई w निकालें',
+        nameEn: 'ΔC = 44m ⇒ Find Path Width (w)',
+        values: { radiusInner: null, radiusOuter: null, pathWidth: null, circDiff: 44, pathArea: null, ratePaving: null },
+        descriptionHi: 'बाहरी और भीतरी परिधियों का अंतर 44 मी है, रास्ते की चौड़ाई w ज्ञात करें।',
+        descriptionEn: 'Difference in circumferences is 44m, find width w.',
+      },
+      {
+        nameHi: 'R = 21m, r = 14m ⇒ वलय का क्षेत्रफल व ₹30/मी² पर खर्च',
+        nameEn: 'R = 21m, r = 14m ⇒ Ring Area & Cost @ ₹30/m²',
+        values: { radiusInner: 14, radiusOuter: 21, pathWidth: null, circDiff: null, pathArea: null, ratePaving: 30 },
+        descriptionHi: 'बाहरी त्रिज्या 21m व भीतरी 14m वाले वलय का क्षेत्रफल व खर्च।',
+        descriptionEn: 'Annulus ring with R=21m, r=14m.',
+      },
+    ],
+    solve: (inputs) => {
+      let r = inputs.radiusInner;
+      let R = inputs.radiusOuter;
+      let w = inputs.pathWidth;
+      const dC = inputs.circDiff;
+      let area = inputs.pathArea;
+      const rate = inputs.ratePaving ?? 25;
+      const PI = 22 / 7;
+
+      const givenData: { labelHi: string; labelEn: string; value: string }[] = [];
+      const stepsHi: string[] = [];
+      const stepsEn: string[] = [];
+      const formulas: string[] = [];
+
+      if (r) givenData.push({ labelHi: 'भीतरी त्रिज्या (r)', labelEn: 'Inner Radius (r)', value: `${r} मी` });
+      if (R) givenData.push({ labelHi: 'बाहरी त्रिज्या (R)', labelEn: 'Outer Radius (R)', value: `${R} मी` });
+      if (w) givenData.push({ labelHi: 'चौड़ाई (w)', labelEn: 'Width (w)', value: `${w} मी` });
+      if (dC) givenData.push({ labelHi: 'परिधियों का अंतर (ΔC)', labelEn: 'Circumference Diff', value: `${dC} मी` });
+
+      // If ΔC given -> w = ΔC / (2π)
+      if (dC && !w) {
+        w = dC / (2 * Math.PI);
+        stepsHi.push(`चरण 1 (परिधि अंतर सूत्र): 2πR - 2πr = 2π(R - r) = 2πw = ${dC} मी`);
+        stepsHi.push(`चरण 2 (पक्षांतरण): रास्ते की चौड़ाई w = ${dC} / (2 × 22/7) = ${w.toFixed(2)} मी`);
+        stepsEn.push(`Step 1: 2πw = ${dC} m`);
+        stepsEn.push(`Step 2: w = ${dC} / (2π) = ${w.toFixed(2)} m`);
+        formulas.push('w = ΔC / 2π');
+      }
+
+      if (r && w && !R) R = r + w;
+      if (R && w && !r) r = R - w;
+      if (R && r && !w) w = R - r;
+
+      if (r && R) {
+        const areaOuter = PI * R * R;
+        const areaInner = PI * r * r;
+        area = areaOuter - areaInner;
+        const circInner = 2 * PI * r;
+        const circOuter = 2 * PI * R;
+        const circDiffCalc = circOuter - circInner;
+        const cost = area * rate;
+
+        stepsHi.push(`चरण 1: भीतरी त्रिज्या r = ${r} मी, बाहरी त्रिज्या R = ${R} मी (चौड़ाई w = ${w?.toFixed(2)} मी)`);
+        stepsHi.push(`चरण 2: बाहरी वृत्त का क्षेत्रफल = πR² = (22/7) × ${R}² = ${areaOuter.toFixed(2)} मी²`);
+        stepsHi.push(`चरण 3: भीतरी पार्क का क्षेत्रफल = πr² = (22/7) × ${r}² = ${areaInner.toFixed(2)} मी²`);
+        stepsHi.push(`चरण 4: रास्ते का क्षेत्रफल = π(R² - r²) = (22/7) × (${R}² - ${r}²) = ${area.toFixed(2)} मी²`);
+        stepsHi.push(`शॉर्टकट सूत्र: π(R - r)(R + r) = (22/7) × ${w?.toFixed(2)} × ${(R + r).toFixed(2)} = ${area.toFixed(2)} मी²`);
+        stepsHi.push(`चरण 5: परिधियों की गणना:`);
+        stepsHi.push(`• भीतरी परिधि = 2πr = 2 × (22/7) × ${r} = ${circInner.toFixed(2)} मी`);
+        stepsHi.push(`• बाहरी परिधि = 2πR = 2 × (22/7) × ${R} = ${circOuter.toFixed(2)} मी`);
+        stepsHi.push(`• परिधियों का अंतर = 2πw = ${circDiffCalc.toFixed(2)} मी`);
+        stepsHi.push(`\n[लागत गणना]:`);
+        stepsHi.push(`• रास्ते पर काम का खर्च (@ ₹${rate}/मी²) = ${area.toFixed(2)} × ${rate} = ₹${cost.toFixed(2)}`);
+
+        stepsEn.push(`Step 1: r = ${r} m, R = ${R} m, width w = ${w?.toFixed(2)} m`);
+        stepsEn.push(`Step 2: Outer Area = πR² = ${areaOuter.toFixed(2)} sq m`);
+        stepsEn.push(`Step 3: Inner Area = πr² = ${areaInner.toFixed(2)} sq m`);
+        stepsEn.push(`Step 4: Path Area = π(R² - r²) = ${area.toFixed(2)} sq m`);
+        stepsEn.push(`Step 5: Inner Circumference = ${circInner.toFixed(2)} m, Outer = ${circOuter.toFixed(2)} m`);
+        stepsEn.push(`Circumference Difference = ${circDiffCalc.toFixed(2)} m`);
+        stepsEn.push(`Total Cost (@ ₹${rate}/m²) = ₹${cost.toFixed(2)}`);
+
+        formulas.push('A = π(R² - r²) = πw(2r + w)', 'ΔC = 2πw', 'Cost = A × Rate');
+
+        return {
+          titleHi: `वृत्ताकार रास्ते का हल (r = ${r} मी, R = ${R} मी, w = ${w?.toFixed(2)} मी)`,
+          titleEn: `Circular Path Solution (r = ${r} m, R = ${R} m, w = ${w?.toFixed(2)} m)`,
+          category: '2D Mensuration: वृत्ताकार मार्ग',
+          givenData,
+          toFindHi: 'रास्ते का क्षेत्रफल, त्रिज्याएं व परिधियों का अंतर',
+          toFindEn: 'Path Area, Radii, and Circumference Difference',
+          stepsHi,
+          stepsEn,
+          finalAnswerHi: `रास्ते का क्षेत्रफल = ${area.toFixed(2)} मी² | चौड़ाई (w) = ${w?.toFixed(2)} मी | परिधियों का अंतर = ${circDiffCalc.toFixed(2)} मी | कुल खर्च = ₹${cost.toFixed(2)}`,
+          finalAnswerEn: `Path Area = ${area.toFixed(2)} sq m | Width = ${w?.toFixed(2)} m | Circumference Diff = ${circDiffCalc.toFixed(2)} m | Cost = ₹${cost.toFixed(2)}`,
+          formulasUsed: formulas,
+          tipsHi: 'परिधियों का अंतर हमेशा 2πw होता है, चाहे त्रिज्या कितनी भी बड़ी क्यों न हो।',
+          tipsEn: 'Difference between circumferences is strictly 2πw regardless of circle size.',
+        };
+      }
+
+      return {
+        titleHi: 'वृत्ताकार रास्ता: मान भरें',
+        titleEn: 'Circular Path: Enter Values',
+        category: '2D Mensuration',
+        givenData: [{ labelHi: 'स्थिति', labelEn: 'Status', value: 'मान भरें' }],
+        toFindHi: 'भीतरी त्रिज्या r व चौड़ाई w भरें',
+        toFindEn: 'Enter Inner Radius and Width',
+        stepsHi: ['कृपया मान भरें।'],
+        stepsEn: ['Please enter values.'],
+        finalAnswerHi: 'कृपया मान भरें।',
+        finalAnswerEn: 'Please enter values.',
+        formulasUsed: ['A = π(R² - r²)'],
+      };
+    },
+  },
+
+  // 1E. पहिए के चक्कर, दूरी व चाल (Wheel Revolutions, Distance & Speed)
+  {
+    id: 'wheel_revolutions',
+    nameHi: 'पहिए के चक्कर व दूरी (Wheel Revolutions & Distance)',
+    nameEn: 'Wheel Revolutions & Distance',
+    categoryHi: '2D क्षेत्रमिति (2D Mensuration)',
+    categoryEn: '2D Geometry',
+    icon: '⚙️',
+    badge: 'दूरी = N × 2πr | N = D / 2πr',
+    mainFormulaText: '1 चक्कर की दूरी = 2πr | कुल दूरी D = N × 2πr | चक्करों की संख्या N = कुल दूरी / 2πr',
+    descriptionHi: 'पहिए की त्रिज्या (r सेमी), व्यास (d सेमी), कुल दूरी (D किमी/मी), चक्करों की संख्या (N), समय व चाल निकालें।',
+    descriptionEn: 'Calculate wheel revolutions, distance travelled, wheel diameter, speed, and time.',
+    variables: [
+      { key: 'radiusCm', symbol: 'r', labelHi: 'पहिए की त्रिज्या (Radius r)', labelEn: 'Wheel Radius (r)', unitHi: 'सेमी (cm)', unitEn: 'cm' },
+      { key: 'diameterCm', symbol: 'd', labelHi: 'पहिए का व्यास (Diameter d)', labelEn: 'Wheel Diameter (d)', unitHi: 'सेमी (cm)', unitEn: 'cm' },
+      { key: 'distanceKm', symbol: 'D', labelHi: 'कुल दूरी (Distance D in km)', labelEn: 'Total Distance (D in km)', unitHi: 'किमी (km)', unitEn: 'km' },
+      { key: 'revolutions', symbol: 'N', labelHi: 'चक्करों की संख्या (Revolutions N)', labelEn: 'Revolutions (N)', unitHi: 'चक्कर', unitEn: 'revs' },
+      { key: 'timeMins', symbol: 't', labelHi: 'समय (Time in mins)', labelEn: 'Time (mins)', unitHi: 'मिनट', unitEn: 'mins' },
+    ],
+    presets: [
+      {
+        nameHi: 'r = 28 सेमी, D = 88 किमी ⇒ चक्करों की संख्या (N) निकालें',
+        nameEn: 'r = 28 cm, D = 88 km ⇒ Find Revolutions (N)',
+        values: { radiusCm: 28, diameterCm: null, distanceKm: 88, revolutions: null, timeMins: null },
+        descriptionHi: '28 सेमी त्रिज्या का पहिया 88 किमी चलने में कितने चक्कर लगाएगा?',
+        descriptionEn: 'How many revolutions will a 28cm wheel make in 88km?',
+      },
+      {
+        nameHi: 'd = 70 सेमी, N = 2000 चक्कर ⇒ तय की गई कुल दूरी',
+        nameEn: 'd = 70 cm, N = 2000 revs ⇒ Distance Travelled',
+        values: { radiusCm: null, diameterCm: 70, distanceKm: null, revolutions: 2000, timeMins: null },
+        descriptionHi: '70 सेमी व्यास वाला पहिया 2000 चक्करों में कितनी दूरी तय करेगा?',
+        descriptionEn: 'Distance travelled by 70cm diameter wheel in 2000 revolutions.',
+      },
+      {
+        nameHi: 'r = 35 सेमी, N = 5000 चक्कर, समय = 10 मिनट ⇒ चाल (km/h)',
+        nameEn: 'r = 35 cm, N = 5000 revs, Time = 10 min ⇒ Speed (km/h)',
+        values: { radiusCm: 35, diameterCm: null, distanceKm: null, revolutions: 5000, timeMins: 10 },
+        descriptionHi: '35 सेमी त्रिज्या का पहिया 10 मिनट में 5000 चक्कर लगाता है, गाड़ी की चाल निकालें।',
+        descriptionEn: 'Calculate car speed in km/h.',
+      },
+    ],
+    solve: (inputs) => {
+      let r = inputs.radiusCm;
+      let d = inputs.diameterCm;
+      let D_km = inputs.distanceKm;
+      let N = inputs.revolutions;
+      const t = inputs.timeMins;
+      const PI = 22 / 7;
+
+      const givenData: { labelHi: string; labelEn: string; value: string }[] = [];
+      const stepsHi: string[] = [];
+      const stepsEn: string[] = [];
+      const formulas: string[] = [];
+
+      if (d && !r) r = d / 2;
+      if (r && !d) d = 2 * r;
+
+      if (r) givenData.push({ labelHi: 'पहिए की त्रिज्या (r)', labelEn: 'Radius (r)', value: `${r} सेमी (${(r / 100).toFixed(3)} मी)` });
+      if (d) givenData.push({ labelHi: 'पहिए का व्यास (d)', labelEn: 'Diameter (d)', value: `${d} सेमी` });
+      if (D_km) givenData.push({ labelHi: 'कुल दूरी (D)', labelEn: 'Distance (D)', value: `${D_km} किमी (${D_km * 1000} मी)` });
+      if (N) givenData.push({ labelHi: 'चक्कर (N)', labelEn: 'Revolutions (N)', value: `${N}` });
+      if (t) givenData.push({ labelHi: 'समय (Time)', labelEn: 'Time', value: `${t} मिनट` });
+
+      if (r) {
+        const circumMeters = (2 * PI * r) / 100; // 1 revolution in meters
+
+        // Case 1: Given r and Distance -> Find N
+        if (D_km && !N) {
+          const distMeters = D_km * 1000;
+          N = distMeters / circumMeters;
+
+          stepsHi.push(`चरण 1 (1 चक्कर में तय दूरी = परिधि): C = 2πr = 2 × (22/7) × ${r} = ${(2 * PI * r).toFixed(2)} सेमी = ${circumMeters.toFixed(4)} मीटर`);
+          stepsHi.push(`चरण 2 (कुल दूरी को मीटर में बदलना): D = ${D_km} किमी = ${D_km} × 1000 = ${distMeters.toLocaleString()} मीटर`);
+          stepsHi.push(`चरण 3 (चक्करों की संख्या N): N = कुल दूरी / 1 चक्कर की दूरी = ${distMeters.toLocaleString()} / ${circumMeters.toFixed(4)} = ${Math.round(N).toLocaleString()} चक्कर`);
+
+          stepsEn.push(`Step 1 (1 Revolution Distance = Circumference): C = 2πr = ${circumMeters.toFixed(4)} meters`);
+          stepsEn.push(`Step 2 (Distance in meters): D = ${distMeters.toLocaleString()} m`);
+          stepsEn.push(`Step 3 (Revolutions N): N = Distance / Circumference = ${Math.round(N).toLocaleString()} revolutions`);
+          formulas.push('C = 2πr', 'N = D / C');
+        } else if (N && !D_km) {
+          // Case 2: Given r and N -> Find Distance
+          const distMeters = N * circumMeters;
+          D_km = distMeters / 1000;
+
+          stepsHi.push(`चरण 1: पहिए की परिधि = 2πr = 2 × (22/7) × ${r} = ${(2 * PI * r).toFixed(2)} सेमी = ${circumMeters.toFixed(4)} मीटर`);
+          stepsHi.push(`चरण 2: कुल दूरी D = N × परिधि = ${N} × ${circumMeters.toFixed(4)} = ${distMeters.toFixed(2)} मीटर = ${D_km.toFixed(3)} किमी`);
+
+          stepsEn.push(`Step 1: Circumference = 2πr = ${circumMeters.toFixed(4)} m`);
+          stepsEn.push(`Step 2: Total Distance = N × C = ${distMeters.toFixed(2)} m = ${D_km.toFixed(3)} km`);
+          formulas.push('D = N × 2πr');
+        }
+
+        let speedKmh = 0;
+        if (D_km && t && t > 0) {
+          speedKmh = (D_km / t) * 60;
+          stepsHi.push(`चरण 4 (चाल की गणना): चाल = दूरी / समय = ${D_km.toFixed(2)} किमी / (${t}/60 घंटा) = ${speedKmh.toFixed(2)} किमी/घंटा (km/h)`);
+          stepsEn.push(`Step 4 (Speed): Speed = Distance / Time = ${speedKmh.toFixed(2)} km/h`);
+          formulas.push('Speed = D / (t / 60)');
+        }
+
+        return {
+          titleHi: `पहिए के चक्कर व दूरी का हल (त्रिज्या = ${r} सेमी, व्यास = ${d} सेमी)`,
+          titleEn: `Wheel Revolutions & Distance Solution (Radius = ${r} cm, Diameter = ${d} cm)`,
+          category: '2D Mensuration: पहिए की गति',
+          givenData,
+          toFindHi: 'चक्करों की संख्या N, कुल दूरी D व चाल',
+          toFindEn: 'Revolutions N, Distance D, and Speed',
+          stepsHi,
+          stepsEn,
+          finalAnswerHi: `1 चक्कर में दूरी = ${circumMeters.toFixed(4)} मी | कुल चक्कर = ${Math.round(N || 0).toLocaleString()} | कुल दूरी = ${D_km?.toFixed(3)} किमी (${((D_km || 0) * 1000).toFixed(1)} मी)${speedKmh ? ` | चाल = ${speedKmh.toFixed(2)} km/h` : ''}`,
+          finalAnswerEn: `Circumference = ${circumMeters.toFixed(4)} m | Revolutions = ${Math.round(N || 0).toLocaleString()} | Distance = ${D_km?.toFixed(3)} km${speedKmh ? ` | Speed = ${speedKmh.toFixed(2)} km/h` : ''}`,
+          formulasUsed: formulas,
+          tipsHi: 'हमेशा याद रखें: 1 चक्कर = 2πr (पहिए की परिधि)। दूरी और त्रिज्या की इकाइयां (मी/किमी/सेमी) समान रखें।',
+          tipsEn: '1 Revolution = 2πr (Circumference). Always align units (cm, m, km).',
+        };
+      }
+
+      return {
+        titleHi: 'पहिए के चक्कर: मान भरें',
+        titleEn: 'Wheel: Enter Values',
+        category: '2D Mensuration',
+        givenData: [{ labelHi: 'स्थिति', labelEn: 'Status', value: 'मान भरें' }],
+        toFindHi: 'पहिए की त्रिज्या r व कुल दूरी D या चक्कर N भरें',
+        toFindEn: 'Enter Wheel Radius and Distance/Revolutions',
+        stepsHi: ['कृपया मान भरें।'],
+        stepsEn: ['Please enter values.'],
+        finalAnswerHi: 'कृपया मान भरें।',
+        finalAnswerEn: 'Please enter values.',
+        formulasUsed: ['D = N × 2πr'],
+      };
+    },
+  },
+
+  // 1F. कमरे की 4 दीवारें, पुताई व फर्श की टाइलें (Room 4 Walls & Floor Tiles)
+  {
+    id: 'room_walls_tiles',
+    nameHi: 'कमरे की 4 दीवारें व टाइलें (Room 4 Walls & Tiles)',
+    nameEn: 'Room 4 Walls & Floor Tiles',
+    categoryHi: '2D व 3D क्षेत्रमिति',
+    categoryEn: 'Mensuration Applications',
+    icon: '🏠',
+    badge: '4 दीवारें = 2h(l+b) | टाइलें = A / (t_l × t_b)',
+    mainFormulaText: '4 दीवारों का क्षेत्रफल = 2h(l + b) | छत सहित पुताई = 2h(l + b) + lb - खिड़की/दरवाजे | टाइल संख्या = फर्श / टाइल',
+    descriptionHi: 'कमरे की लंबाई (l), चौड़ाई (b), ऊंचाई (h), दरवाजे/खिड़कियों का क्षेत्रफल, पुताई खर्च व फर्श टाइलों की संख्या।',
+    descriptionEn: 'Area of 4 walls 2h(l+b), whitewashing area, number of floor tiles, and total renovation cost.',
+    variables: [
+      { key: 'roomL', symbol: 'l', labelHi: 'कमरे की लंबाई (Length l)', labelEn: 'Room Length (l)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'roomB', symbol: 'b', labelHi: 'कमरे की चौड़ाई (Breadth b)', labelEn: 'Room Breadth (b)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'roomH', symbol: 'h', labelHi: 'कमरे की ऊंचाई (Height h)', labelEn: 'Room Height (h)', unitHi: 'मी (m)', unitEn: 'm' },
+      { key: 'doorsArea', symbol: 'A_doors', labelHi: 'दरवाजे/खिड़की क्षेत्रफल (Doors/Windows)', labelEn: 'Doors/Windows Area', unitHi: 'मी² (m²)', unitEn: 'sq m' },
+      { key: 'tileLengthCm', symbol: 't_l', labelHi: 'टाइल की लंबाई (Tile Length)', labelEn: 'Tile Length', unitHi: 'सेमी (cm)', unitEn: 'cm' },
+      { key: 'tileBreadthCm', symbol: 't_b', labelHi: 'टाइल की चौड़ाई (Tile Breadth)', labelEn: 'Tile Breadth', unitHi: 'सेमी (cm)', unitEn: 'cm' },
+      { key: 'rateWhitewash', symbol: 'Rate', labelHi: 'पुताई की दर (₹/m²)', labelEn: 'Whitewash Rate (₹/m²)', unitHi: '₹/मी²', unitEn: '₹/sq m' },
+    ],
+    presets: [
+      {
+        nameHi: 'l = 12m, b = 8m, h = 4m, दरवाजे = 15m² ⇒ 4 दीवारें व पुताई खर्च',
+        nameEn: 'l = 12m, b = 8m, h = 4m, Doors = 15m² ⇒ 4 Walls & Whitewash',
+        values: { roomL: 12, roomB: 8, roomH: 4, doorsArea: 15, tileLengthCm: null, tileBreadthCm: null, rateWhitewash: 12 },
+        descriptionHi: '12m × 8m × 4m कमरे में 4 दीवारों का क्षेत्रफल व ₹12/मी² पर पुताई खर्च।',
+        descriptionEn: '4 walls and whitewashing cost in 12m × 8m × 4m room.',
+      },
+      {
+        nameHi: 'l = 15m, b = 10m, टाइल 50cm × 40cm ⇒ कुल आवश्यक टाइलें',
+        nameEn: 'l = 15m, b = 10m, Tile 50cm × 40cm ⇒ Total Tiles Needed',
+        values: { roomL: 15, roomB: 10, roomH: 3.5, doorsArea: 0, tileLengthCm: 50, tileBreadthCm: 40, rateWhitewash: null },
+        descriptionHi: '15m × 10m हॉल के फर्श पर 50cm × 40cm की कितनी टाइलें लगेंगी?',
+        descriptionEn: 'Number of 50cm × 40cm tiles for 15m × 10m floor (750 tiles).',
+      },
+    ],
+    solve: (inputs) => {
+      const l = inputs.roomL;
+      const b = inputs.roomB;
+      const h = inputs.roomH || 3.5;
+      const aDoors = inputs.doorsArea ?? 0;
+      const tl = inputs.tileLengthCm;
+      const tb = inputs.tileBreadthCm;
+      const rateW = inputs.rateWhitewash ?? 12;
+
+      const givenData: { labelHi: string; labelEn: string; value: string }[] = [];
+      const stepsHi: string[] = [];
+      const stepsEn: string[] = [];
+      const formulas: string[] = [];
+
+      if (l) givenData.push({ labelHi: 'लंबाई (l)', labelEn: 'Length (l)', value: `${l} मी` });
+      if (b) givenData.push({ labelHi: 'चौड़ाई (b)', labelEn: 'Breadth (b)', value: `${b} मी` });
+      if (h) givenData.push({ labelHi: 'ऊंचाई (h)', labelEn: 'Height (h)', value: `${h} मी` });
+      if (aDoors > 0) givenData.push({ labelHi: 'खिड़की/दरवाजे (A_doors)', labelEn: 'Doors/Windows', value: `${aDoors} मी²` });
+      if (tl && tb) givenData.push({ labelHi: 'टाइल का आकार', labelEn: 'Tile Size', value: `${tl} सेमी × ${tb} सेमी` });
+
+      if (l && b) {
+        const floorArea = l * b;
+        const ceilingArea = l * b;
+        const wallsArea = 2 * h * (l + b);
+        const whitewashWallsOnly = Math.max(0, wallsArea - aDoors);
+        const whitewashWallsAndCeiling = Math.max(0, wallsArea + ceilingArea - aDoors);
+        const costWallsOnly = whitewashWallsOnly * rateW;
+        const costWithCeiling = whitewashWallsAndCeiling * rateW;
+
+        stepsHi.push(`चरण 1 (फर्श व छत का क्षेत्रफल): A_floor = l × b = ${l} × ${b} = ${floorArea.toFixed(2)} मी²`);
+        stepsHi.push(`चरण 2 (4 दीवारों का क्षेत्रफल): A_walls = 2h(l + b) = 2 × ${h} × (${l} + ${b}) = ${wallsArea.toFixed(2)} मी²`);
+
+        stepsEn.push(`Step 1 (Floor Area): A_floor = l × b = ${floorArea.toFixed(2)} sq m`);
+        stepsEn.push(`Step 2 (4 Walls Area): A_walls = 2h(l + b) = ${wallsArea.toFixed(2)} sq m`);
+        formulas.push('A_4walls = 2h(l + b)', 'A_floor = l × b');
+
+        if (aDoors > 0) {
+          stepsHi.push(`चरण 3 (दरवाजे/खिड़कियां घटाने पर शुद्ध दीवारें): ${wallsArea.toFixed(2)} - ${aDoors} = ${whitewashWallsOnly.toFixed(2)} मी²`);
+          stepsEn.push(`Step 3 (Net Wall Area): ${wallsArea.toFixed(2)} - ${aDoors} = ${whitewashWallsOnly.toFixed(2)} sq m`);
+        }
+
+        stepsHi.push(`चरण 4 (पुताई खर्च गणना @ ₹${rateW}/मी²):`);
+        stepsHi.push(`• केवल 4 दीवारों की पुताई खर्च = ${whitewashWallsOnly.toFixed(2)} × ${rateW} = ₹${costWallsOnly.toFixed(2)}`);
+        stepsHi.push(`• 4 दीवारें + छत की पुताई खर्च = (${whitewashWallsOnly.toFixed(2)} + ${ceilingArea}) × ${rateW} = ${whitewashWallsAndCeiling.toFixed(2)} × ${rateW} = ₹${costWithCeiling.toFixed(2)}`);
+
+        stepsEn.push(`• Whitewashing cost (4 Walls only) = ₹${costWallsOnly.toFixed(2)}`);
+        stepsEn.push(`• Whitewashing cost (Walls + Ceiling) = ₹${costWithCeiling.toFixed(2)}`);
+
+        let tileCount = 0;
+        if (tl && tb && tl > 0 && tb > 0) {
+          const singleTileAreaSqMeters = (tl / 100) * (tb / 100);
+          tileCount = Math.ceil(floorArea / singleTileAreaSqMeters);
+
+          stepsHi.push(`\n[फर्श की टाइलें]:`);
+          stepsHi.push(`• 1 टाइल का क्षेत्रफल = (${tl}/100) × (${tb}/100) = ${singleTileAreaSqMeters.toFixed(4)} मी²`);
+          stepsHi.push(`• कुल आवश्यक टाइलें = फर्श का क्षेत्रफल / 1 टाइल का क्षेत्रफल = ${floorArea.toFixed(2)} / ${singleTileAreaSqMeters.toFixed(4)} = ${tileCount.toLocaleString()} टाइलें`);
+
+          stepsEn.push(`\n[Floor Tiles]:`);
+          stepsEn.push(`• 1 Tile Area = ${singleTileAreaSqMeters.toFixed(4)} sq m`);
+          stepsEn.push(`• Total Tiles Needed = ${floorArea.toFixed(2)} / ${singleTileAreaSqMeters.toFixed(4)} = ${tileCount.toLocaleString()} tiles`);
+          formulas.push('Tiles = Floor Area / (t_l × t_b)');
+        }
+
+        return {
+          titleHi: `कमरे की 4 दीवारें व टाइलों का हल (l = ${l} मी, b = ${b} मी, h = ${h} मी)`,
+          titleEn: `Room 4 Walls & Renovation Solution (l = ${l} m, b = ${b} m, h = ${h} m)`,
+          category: 'क्षेत्रमिति अनुप्रयोग',
+          givenData,
+          toFindHi: '4 दीवारों का क्षेत्रफल, पुताई खर्च व टाइलें',
+          toFindEn: '4 Walls Area, Whitewash Cost, and Tile Count',
+          stepsHi,
+          stepsEn,
+          finalAnswerHi: `4 दीवारों का क्षेत्रफल = ${wallsArea.toFixed(2)} मी² | पुताई खर्च (दीवारें + छत) = ₹${costWithCeiling.toFixed(2)}${tileCount ? ` | कुल टाइलें = ${tileCount.toLocaleString()} टाइलें` : ''}`,
+          finalAnswerEn: `4 Walls Area = ${wallsArea.toFixed(2)} sq m | Whitewash Cost (Walls + Ceiling) = ₹${costWithCeiling.toFixed(2)}${tileCount ? ` | Total Tiles = ${tileCount.toLocaleString()} tiles` : ''}`,
+          formulasUsed: formulas,
+          tipsHi: 'सूत्र याद रखें: 4 दीवारें = 2h(l + b) = आधार का परिमाप × ऊंचाई।',
+          tipsEn: '4 Walls Area = 2h(l + b) = Perimeter of base × Height.',
+        };
+      }
+
+      return {
+        titleHi: 'कमरे की दीवारें: मान भरें',
+        titleEn: 'Room Walls: Enter Values',
+        category: 'Mensuration Applications',
+        givenData: [{ labelHi: 'स्थिति', labelEn: 'Status', value: 'मान भरें' }],
+        toFindHi: 'लंबाई l, चौड़ाई b व ऊंचाई h भरें',
+        toFindEn: 'Enter Length, Breadth, and Height',
+        stepsHi: ['कृपया कमरे की विमाएं भरें।'],
+        stepsEn: ['Please enter room dimensions.'],
+        finalAnswerHi: 'कृपया मान भरें।',
+        finalAnswerEn: 'Please enter values.',
+        formulasUsed: ['A = 2h(l + b)'],
+      };
+    },
+  },
+
   // 2. बेलन (Cylinder): V, r, h, CSA, TSA, BaseArea
   {
     id: 'cylinder',

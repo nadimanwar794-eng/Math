@@ -14,41 +14,66 @@ export default function App() {
   const [language, setLanguage] = useState<'hi' | 'en'>('hi');
   const [projectorMode, setProjectorMode] = useState<boolean>(false);
   const [focusMode, setFocusMode] = useState<boolean>(false);
+  const [diagramOnlyMode, setDiagramOnlyMode] = useState<boolean>(false);
 
-  // Keyboard shortcut: Press 'f' or 'F' (when not in input) to toggle focus mode
+  // Keyboard shortcut: Press 'Escape' to exit diagram-only mode, or 'd'/'f' to toggle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key.toLowerCase() === 'f' &&
-        !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName) &&
-        !e.ctrlKey &&
-        !e.metaKey
-      ) {
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName);
+      if (isInput) return;
+
+      if (e.key === 'Escape' && diagramOnlyMode) {
+        setDiagramOnlyMode(false);
+      } else if (e.key.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey) {
+        setDiagramOnlyMode((prev) => {
+          const next = !prev;
+          if (next && (activeTab === 'offline_solver' || activeTab === 'quiz_practice')) {
+            setActiveTab('shapes_3d');
+          }
+          return next;
+        });
+      } else if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey) {
         setFocusMode((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [diagramOnlyMode, activeTab]);
+
+  const handleToggleDiagramOnly = () => {
+    setDiagramOnlyMode((prev) => {
+      const next = !prev;
+      if (next && (activeTab === 'offline_solver' || activeTab === 'quiz_practice')) {
+        setActiveTab('shapes_3d');
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white transition-all">
-      {/* Navigation Header */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        language={language}
-        setLanguage={setLanguage}
-        projectorMode={projectorMode}
-        setProjectorMode={setProjectorMode}
-        focusMode={focusMode}
-        setFocusMode={setFocusMode}
-      />
+      {/* Navigation Header - completely hidden in diagramOnlyMode */}
+      {!diagramOnlyMode && (
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          language={language}
+          setLanguage={setLanguage}
+          projectorMode={projectorMode}
+          setProjectorMode={setProjectorMode}
+          focusMode={focusMode}
+          setFocusMode={setFocusMode}
+          diagramOnlyMode={diagramOnlyMode}
+          onToggleDiagramOnly={handleToggleDiagramOnly}
+        />
+      )}
 
       {/* Main Content Area */}
       <main
         className={`flex-1 w-full mx-auto transition-all ${
-          focusMode
+          diagramOnlyMode
+            ? 'w-screen h-screen fixed inset-0 z-50 p-0 m-0 overflow-hidden bg-slate-950'
+            : focusMode
             ? 'w-full max-w-[1920px] px-1 sm:px-3 py-1'
             : projectorMode
             ? 'max-w-[1920px] px-2 sm:px-4 py-2'
@@ -56,24 +81,52 @@ export default function App() {
         }`}
       >
         {activeTab === 'cutting_lab' && (
-          <CubeCuttingLabTab language={language} focusMode={focusMode} onToggleFocus={() => setFocusMode((p) => !p)} />
+          <CubeCuttingLabTab
+            language={language}
+            focusMode={focusMode}
+            onToggleFocus={() => setFocusMode((p) => !p)}
+            diagramOnlyMode={diagramOnlyMode}
+            onToggleDiagramOnly={handleToggleDiagramOnly}
+            onCancelDiagramOnly={() => setDiagramOnlyMode(false)}
+          />
         )}
         {activeTab === 'shapes_3d' && (
-          <ShapeVisualizerTab language={language} projectorMode={projectorMode} focusMode={focusMode} onToggleFocus={() => setFocusMode((p) => !p)} />
+          <ShapeVisualizerTab
+            language={language}
+            projectorMode={projectorMode}
+            focusMode={focusMode}
+            onToggleFocus={() => setFocusMode((p) => !p)}
+            diagramOnlyMode={diagramOnlyMode}
+            onToggleDiagramOnly={handleToggleDiagramOnly}
+            onCancelDiagramOnly={() => setDiagramOnlyMode(false)}
+          />
         )}
         {activeTab === 'geometry_2d' && (
-          <Geometry2DTab language={language} projectorMode={projectorMode} />
+          <Geometry2DTab
+            language={language}
+            projectorMode={projectorMode}
+            diagramOnlyMode={diagramOnlyMode}
+            onToggleDiagramOnly={handleToggleDiagramOnly}
+            onCancelDiagramOnly={() => setDiagramOnlyMode(false)}
+          />
         )}
-        {activeTab === 'dice_reasoning' && <DiceReasoningTab language={language} />}
+        {activeTab === 'dice_reasoning' && (
+          <DiceReasoningTab
+            language={language}
+            diagramOnlyMode={diagramOnlyMode}
+            onToggleDiagramOnly={handleToggleDiagramOnly}
+            onCancelDiagramOnly={() => setDiagramOnlyMode(false)}
+          />
+        )}
         {activeTab === 'offline_solver' && <OfflineSolverTab language={language} />}
         {activeTab === 'quiz_practice' && <PracticeQuizTab language={language} />}
       </main>
 
-      {/* Connectivity & Offline Status Indicator */}
-      <OfflineIndicator language={language} />
+      {/* Connectivity & Offline Status Indicator - hidden in diagramOnlyMode */}
+      {!diagramOnlyMode && <OfflineIndicator language={language} />}
 
-      {/* Footer */}
-      {!projectorMode && !focusMode && (
+      {/* Footer - hidden in diagramOnlyMode */}
+      {!diagramOnlyMode && !projectorMode && !focusMode && (
         <footer className="border-t border-slate-900 bg-slate-950/60 py-3 text-center text-xs text-slate-500">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>
@@ -82,7 +135,9 @@ export default function App() {
                 : '3D & 2D Geometry, Mensuration & Reasoning Studio • 100% Offline'}
             </span>
             <span className="text-slate-600 font-mono text-[11px]">
-              {language === 'hi' ? 'फुल डायग्राम के लिए F दबाएं या "डायग्राम बड़ा करें" पर क्लिक करें' : 'Press F or click "Clean View" for full diagram'}
+              {language === 'hi'
+                ? 'सिर्फ डायग्राम के लिए "केवल डायग्राम मोड" बटन या "D" दबाएं'
+                : 'Press D or click "Only Diagram Mode" for pure fullscreen diagram'}
             </span>
           </div>
         </footer>
@@ -90,4 +145,5 @@ export default function App() {
     </div>
   );
 }
+
 

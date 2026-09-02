@@ -2,18 +2,24 @@ import React, { useState } from 'react';
 import { CubeCutParams, CubeFace, FaceColors, MiniCubeData } from '../types';
 import { generateMiniCubes } from '../utils/mathFormulas';
 import { ThreeCanvas } from './ThreeCanvas';
-import { Box, CheckCircle2, ChevronRight, Eye, Filter, Info, Layers, Palette, Sparkles, Wand2 } from 'lucide-react';
+import { Box, CheckCircle2, ChevronRight, Eye, Filter, Info, Layers, Maximize2, Palette, Sparkles, Wand2, X } from 'lucide-react';
 
 interface CubeCuttingLabTabProps {
   language: 'hi' | 'en';
   focusMode?: boolean;
   onToggleFocus?: () => void;
+  diagramOnlyMode?: boolean;
+  onToggleDiagramOnly?: () => void;
+  onCancelDiagramOnly?: () => void;
 }
 
 export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
   language,
   focusMode = false,
   onToggleFocus,
+  diagramOnlyMode = false,
+  onToggleDiagramOnly,
+  onCancelDiagramOnly,
 }) => {
   const [params, setParams] = useState<CubeCutParams>({
     isCuboid: false,
@@ -75,6 +81,64 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
     ? Math.max(0, params.nx - 1) + Math.max(0, params.ny - 1) + Math.max(0, params.nz - 1)
     : 3 * Math.max(0, params.n - 1);
 
+  // =========================================================================
+  // ONLY DIAGRAM MODE (ZEN DIAGRAM VIEW)
+  // Everything else is hidden, only the 3D diagram is shown with a single cancel button
+  // =========================================================================
+  if (diagramOnlyMode) {
+    return (
+      <div className="fixed inset-0 z-[9999] w-screen h-screen bg-slate-950 flex flex-col justify-center items-center overflow-hidden select-none">
+        {/* Full Viewport 3D Canvas */}
+        <div className="w-full h-full">
+          <ThreeCanvas
+            mode="cube_cutting"
+            cubeCutParams={params}
+            selectedCube={selectedCube}
+            onSelectMiniCube={(cube) => setSelectedCube(cube)}
+            language={language}
+          />
+        </div>
+
+        {/* 1. Only Button to Cancel / Exit Diagram Mode */}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            id="btn-cancel-diagram-mode-cube"
+            onClick={onCancelDiagramOnly}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs sm:text-sm shadow-2xl border-2 border-white/20 transition-all hover:scale-105 cursor-pointer backdrop-blur-md"
+            title="Exit Diagram Mode"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>{language === 'hi' ? 'डायग्राम मोड बंद करें (Esc)' : 'Exit Diagram Mode (Esc)'}</span>
+          </button>
+        </div>
+
+        {/* Floating Title Badge */}
+        <div className="absolute top-4 left-4 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-4 py-2 text-xs font-bold text-white flex items-center gap-2 shadow-xl pointer-events-none">
+          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse" />
+          <span>{language === 'hi' ? `${params.isCuboid ? 'घनाभ' : 'घन'} 3D डायग्राम` : '3D Cube Slicing Diagram'}</span>
+          <span className="text-slate-400 font-mono">
+            ({params.isCuboid ? `${params.nx}×${params.ny}×${params.nz}` : `${params.n}×${params.n}×${params.n}`})
+          </span>
+        </div>
+
+        {/* Minimal Floating Explode Slider HUD at Bottom */}
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-40 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-2xl px-4 py-2 flex items-center gap-3 text-xs text-white shadow-2xl">
+          <span className="text-slate-300 font-semibold">{language === 'hi' ? 'टुकड़ों का फैलाव:' : 'Explode:'}</span>
+          <input
+            type="range"
+            min="0"
+            max="1.5"
+            step="0.05"
+            value={params.explosion}
+            onChange={(e) => setParams({ ...params, explosion: parseFloat(e.target.value) })}
+            className="w-28 sm:w-36 accent-indigo-500 h-1.5 cursor-pointer"
+          />
+          <span className="font-mono text-indigo-400 font-bold">{Math.round(params.explosion * 100)}%</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Top Banner: Mode Selector & Presets in a sleek compact single bar */}
@@ -106,6 +170,17 @@ export const CubeCuttingLabTab: React.FC<CubeCuttingLabTabProps> = ({
               <span>{language === 'hi' ? 'घनाभ काटना' : 'Cuboid Slicing'}</span>
             </button>
           </div>
+
+          {/* Quick Trigger for Only Diagram Mode */}
+          <button
+            id="btn-trigger-only-diagram-cube"
+            onClick={onToggleDiagramOnly}
+            className="px-2.5 py-1.5 rounded-lg bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+            title={language === 'hi' ? 'केवल डायग्राम मोड (बाकी सब छिपाएं)' : 'Only Diagram Mode'}
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{language === 'hi' ? 'केवल डायग्राम' : 'Only Diagram'}</span>
+          </button>
         </div>
 
         {/* Quick Color Presets */}
